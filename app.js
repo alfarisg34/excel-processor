@@ -196,13 +196,258 @@ class ExcelProcessor {
         return worksheet;
     }
 
+    addHierarchicalSumFormulas(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const formulasAdded = [];
+        
+        // Process from bottom to top for hierarchical sums
+        for (let R = range.e.r; R >= range.s.r; --R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 }); // Column A
+            const cellB = XLSX.utils.encode_cell({ r: R, c: 1 }); // Column B
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 }); // Column U
+            
+            if (worksheet[cellA] && worksheet[cellA].v) {
+                const valueA = String(worksheet[cellA].v).trim();
+                const valueB = worksheet[cellB] ? String(worksheet[cellB].v).trim() : '';
+                
+                let formula = null;
+                
+                // Rule 1: Column B has ">"
+                if (valueB === '>') {
+                    formula = this.createSumForGreaterThan(worksheet, R);
+                }
+                // Rule 2: Column A has 6-digit number
+                else if (/^\d{6}$/.test(valueA)) {
+                    formula = this.createSumFor6Digit(worksheet, R);
+                }
+                // Rule 3: Column A has single alphabet
+                else if (/^[A-Za-z]$/.test(valueA)) {
+                    formula = this.createSumForSingleAlphabet(worksheet, R);
+                }
+                // Rule 4: Column A has 3-digit number
+                else if (/^\d{3}$/.test(valueA)) {
+                    formula = this.createSumFor3Digit(worksheet, R);
+                }
+                // Rule 5: Column A has code 433 (4 digit. 3 alphabet. 3 digit)
+                else if (/^\d{4}\.[A-Za-z]{3}\.\d{3}$/.test(valueA)) {
+                    formula = this.createSumFor433Code(worksheet, R);
+                }
+                // Rule 6: Column A has code 43 (4 digit. 3 alphabet)
+                else if (/^\d{4}\.[A-Za-z]{3}$/.test(valueA)) {
+                    formula = this.createSumFor43Code(worksheet, R);
+                }
+                // Rule 7: Column A has 4-digit number
+                else if (/^\d{4}$/.test(valueA)) {
+                    formula = this.createSumFor4Digit(worksheet, R);
+                }
+                // Rule 8: Column A has code 322 (3 digit. 2 digit. 2 alphabet)
+                else if (/^\d{3}\.\d{2}\.[A-Za-z]{2}$/.test(valueA)) {
+                    formula = this.createSumFor322Code(worksheet, R);
+                }
+                
+                if (formula) {
+                    if (!worksheet[cellU]) {
+                        worksheet[cellU] = {};
+                    }
+                    worksheet[cellU].f = formula;
+                    worksheet[cellU].t = 'n';
+                    formulasAdded.push({ row: R, formula: formula });
+                }
+            }
+        }
+        
+        console.log(`Added ${formulasAdded.length} hierarchical sum formulas`);
+        return worksheet;
+    }
+
+    // Rule 1: Column B has ">"
+    createSumForGreaterThan(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellB = XLSX.utils.encode_cell({ r: R, c: 1 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            if (worksheet[cellB] && String(worksheet[cellB].v).trim() === '-') {
+                sumCells.push(cellU);
+            } else {
+                break; // Stop when we find a non-dash in column B
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 2: 6-digit number in column A
+    createSumFor6Digit(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellB = XLSX.utils.encode_cell({ r: R, c: 1 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 6-digit number
+            if (worksheet[cellA] && /^\d{6}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have "-" in column B
+            if (worksheet[cellB] && String(worksheet[cellB].v).trim() === '-') {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 3: Single alphabet in column A
+    createSumForSingleAlphabet(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next single alphabet
+            if (worksheet[cellA] && /^[A-Za-z]$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have 6-digit numbers
+            if (worksheet[cellA] && /^\d{6}$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 4: 3-digit number in column A
+    createSumFor3Digit(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 3-digit number
+            if (worksheet[cellA] && /^\d{3}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have single alphabet
+            if (worksheet[cellA] && /^[A-Za-z]$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 5: Code 433 in column A
+    createSumFor433Code(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 433 code
+            if (worksheet[cellA] && /^\d{4}\.[A-Za-z]{3}\.\d{3}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have 3-digit numbers
+            if (worksheet[cellA] && /^\d{3}$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 6: Code 43 in column A
+    createSumFor43Code(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 43 code
+            if (worksheet[cellA] && /^\d{4}\.[A-Za-z]{3}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have 433 codes
+            if (worksheet[cellA] && /^\d{4}\.[A-Za-z]{3}\.\d{3}$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 7: 4-digit number in column A
+    createSumFor4Digit(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 4-digit number
+            if (worksheet[cellA] && /^\d{4}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have 43 codes
+            if (worksheet[cellA] && /^\d{4}\.[A-Za-z]{3}$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
+    // Rule 8: Code 322 in column A
+    createSumFor322Code(worksheet, startRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const sumCells = [];
+        
+        for (let R = startRow + 1; R <= range.e.r; ++R) {
+            const cellA = XLSX.utils.encode_cell({ r: R, c: 0 });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
+            
+            // Stop when we find next 322 code
+            if (worksheet[cellA] && /^\d{3}\.\d{2}\.[A-Za-z]{2}$/.test(String(worksheet[cellA].v).trim())) {
+                break;
+            }
+            
+            // Include cells that have 4-digit numbers
+            if (worksheet[cellA] && /^\d{4}$/.test(String(worksheet[cellA].v).trim())) {
+                sumCells.push(cellU);
+            }
+        }
+        
+        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+    }
+
     processFile() {
         if (!this.workbook) {
             this.updateStatus('❌ No file loaded', 'error');
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, and adding multiplication formulas (O and U)...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), and hierarchical sum formulas...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -267,8 +512,11 @@ class ExcelProcessor {
                 // Step 13: Add multiplication formulas in column O (index 14)
                 processedSheet = this.addMultiplicationFormulas(processedSheet);
 
-                // NEW STEP: Add multiplication formulas in column U (index 20) - O * S
+                // Step 14: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
+
+                // Step 15: Add hierarchical sum formulas in column U
+                processedSheet = this.addHierarchicalSumFormulas(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
