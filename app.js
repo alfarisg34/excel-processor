@@ -459,7 +459,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, and applying number formatting...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, and auto-fitting columns...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -532,6 +532,9 @@ class ExcelProcessor {
 
                 // Step 16: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
+
+                // Step 17: Auto-fit columns A and D-W
+                processedSheet = this.autoFitColumns(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
@@ -547,6 +550,50 @@ class ExcelProcessor {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    autoFitColumns(worksheet) {
+        // Set specific widths for columns A and D-W
+        const columnWidths = {
+            0: 12,  // A - Wider for codes and numbers
+            3: 4.5,  // D
+            4: 4.5,  // E  
+            5: 1.17,  // F
+            6: 4.5,  // G
+            7: 4.5,  // H
+            8: 1.17,  // I
+            9: 4.5,  // J
+            10: 4.5, // K
+            11: 1.17, // L
+            12: 4.5, // M
+            13: 4.5, // N
+            14: 5.2, // O - Wider for formulas
+            15: 11.2, // P
+            16: 12, // Q
+            17: 12, // R
+            18: 11.75, // S - Wider for formatted numbers
+            19: 12, // T
+            20: 15, // U - Wider for formulas and formatted numbers
+            21: 9.1, // V
+            22: 3.5  // W
+        };
+        
+        if (!worksheet['!cols']) {
+            worksheet['!cols'] = [];
+        }
+        
+        Object.keys(columnWidths).forEach(col => {
+            const colIndex = parseInt(col);
+            const width = columnWidths[colIndex];
+            
+            worksheet['!cols'][colIndex] = {
+                wch: width,
+                width: width
+            };
+        });
+        
+        console.log('Applied fixed column widths to A and D-W');
+        return worksheet;
     }
 
     applyNumberFormattingAsString(worksheet) {
