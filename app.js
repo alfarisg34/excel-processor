@@ -459,7 +459,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), and hierarchical sum formulas...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, and applying number formatting...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -529,6 +529,9 @@ class ExcelProcessor {
 
                 // Step 15: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
+
+                // Step 16: Apply number formatting to columns S and U
+                processedSheet = this.applyNumberFormattingAsString(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
@@ -544,6 +547,49 @@ class ExcelProcessor {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    applyNumberFormattingAsString(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        const columnsToFormat = [18, 20]; // S and U
+        
+        columnsToFormat.forEach(columnIndex => {
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: columnIndex });
+                
+                if (worksheet[cellAddress]) {
+                    const cell = worksheet[cellAddress];
+                    
+                    if (cell.v !== null && cell.v !== undefined && !cell.f) {
+                        const cellValue = cell.v;
+                        let numericValue;
+                        
+                        if (typeof cellValue === 'number') {
+                            numericValue = cellValue;
+                        } else if (typeof cellValue === 'string') {
+                            const cleanValue = cellValue.replace(/\./g, '').replace(',', '.');
+                            numericValue = parseFloat(cleanValue);
+                        } else {
+                            continue;
+                        }
+                        
+                        if (!isNaN(numericValue) && isFinite(numericValue)) {
+                            // Format as string with Indonesian thousands separators
+                            const formattedValue = this.formatNumberWithSeparators(numericValue);
+                            worksheet[cellAddress].v = formattedValue;
+                            worksheet[cellAddress].t = 's'; // Force string type
+                        }
+                    }
+                }
+            }
+        });
+        
+        return worksheet;
+    }
+
+    formatNumberWithSeparators(number) {
+        return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
 
     addBlankColumns(worksheet, afterColumnIndex, numColumns) {
