@@ -206,53 +206,55 @@ class ExcelProcessor {
             const cellB = XLSX.utils.encode_cell({ r: R, c: 1 }); // Column B
             const cellU = XLSX.utils.encode_cell({ r: R, c: 20 }); // Column U
             
-            if (worksheet[cellA] && worksheet[cellA].v) {
-                const valueA = String(worksheet[cellA].v).trim();
-                const valueB = worksheet[cellB] ? String(worksheet[cellB].v).trim() : '';
-                
-                let formula = null;
-                
-                // Rule 1: Column B has ">"
-                if (valueB === '>') {
-                    formula = this.createSumForGreaterThan(worksheet, R);
+            const valueA = worksheet[cellA] ? String(worksheet[cellA].v).trim() : '';
+            const valueB = worksheet[cellB] ? String(worksheet[cellB].v).trim() : '';
+            
+            let formula = null;
+            
+            console.log(`Row ${R}: A="${valueA}", B="${valueB}"`); // Debug log
+            
+            // Rule 1: Column B has ">" - CHECK THIS FIRST
+            if (valueB.includes('>')) {
+                formula = this.createSumForGreaterThan(worksheet, R);
+                console.log(`Rule 1 applied to row ${R}: ${formula}`); // Debug log
+            }
+            // Rule 2: Column A has 6-digit number
+            else if (/^\d{6}$/.test(valueA)) {
+                formula = this.createSumFor6Digit(worksheet, R);
+            }
+            // Rule 3: Column A has single alphabet
+            else if (/^[A-Za-z]$/.test(valueA)) {
+                formula = this.createSumForSingleAlphabet(worksheet, R);
+            }
+            // Rule 4: Column A has 3-digit number
+            else if (/^\d{3}$/.test(valueA)) {
+                formula = this.createSumFor3Digit(worksheet, R);
+            }
+            // Rule 5: Column A has code 433 (4 digit. 3 alphabet. 3 digit)
+            else if (/^\d{4}\.[A-Za-z]{3}\.\d{3}$/.test(valueA)) {
+                formula = this.createSumFor433Code(worksheet, R);
+            }
+            // Rule 6: Column A has code 43 (4 digit. 3 alphabet)
+            else if (/^\d{4}\.[A-Za-z]{3}$/.test(valueA)) {
+                formula = this.createSumFor43Code(worksheet, R);
+            }
+            // Rule 7: Column A has 4-digit number
+            else if (/^\d{4}$/.test(valueA)) {
+                formula = this.createSumFor4Digit(worksheet, R);
+            }
+            // Rule 8: Column A has code 322 (3 digit. 2 digit. 2 alphabet)
+            else if (/^\d{3}\.\d{2}\.[A-Za-z]{2}$/.test(valueA)) {
+                formula = this.createSumFor322Code(worksheet, R);
+            }
+            
+            if (formula) {
+                if (!worksheet[cellU]) {
+                    worksheet[cellU] = {};
                 }
-                // Rule 2: Column A has 6-digit number
-                else if (/^\d{6}$/.test(valueA)) {
-                    formula = this.createSumFor6Digit(worksheet, R);
-                }
-                // Rule 3: Column A has single alphabet
-                else if (/^[A-Za-z]$/.test(valueA)) {
-                    formula = this.createSumForSingleAlphabet(worksheet, R);
-                }
-                // Rule 4: Column A has 3-digit number
-                else if (/^\d{3}$/.test(valueA)) {
-                    formula = this.createSumFor3Digit(worksheet, R);
-                }
-                // Rule 5: Column A has code 433 (4 digit. 3 alphabet. 3 digit)
-                else if (/^\d{4}\.[A-Za-z]{3}\.\d{3}$/.test(valueA)) {
-                    formula = this.createSumFor433Code(worksheet, R);
-                }
-                // Rule 6: Column A has code 43 (4 digit. 3 alphabet)
-                else if (/^\d{4}\.[A-Za-z]{3}$/.test(valueA)) {
-                    formula = this.createSumFor43Code(worksheet, R);
-                }
-                // Rule 7: Column A has 4-digit number
-                else if (/^\d{4}$/.test(valueA)) {
-                    formula = this.createSumFor4Digit(worksheet, R);
-                }
-                // Rule 8: Column A has code 322 (3 digit. 2 digit. 2 alphabet)
-                else if (/^\d{3}\.\d{2}\.[A-Za-z]{2}$/.test(valueA)) {
-                    formula = this.createSumFor322Code(worksheet, R);
-                }
-                
-                if (formula) {
-                    if (!worksheet[cellU]) {
-                        worksheet[cellU] = {};
-                    }
-                    worksheet[cellU].f = formula;
-                    worksheet[cellU].t = 'n';
-                    formulasAdded.push({ row: R, formula: formula });
-                }
+                worksheet[cellU].f = formula;
+                worksheet[cellU].t = 'n';
+                formulasAdded.push({ row: R, formula: formula });
+                console.log(`Formula added to U${R+1}: ${formula}`); // Debug log
             }
         }
         
@@ -260,23 +262,33 @@ class ExcelProcessor {
         return worksheet;
     }
 
-    // Rule 1: Column B has ">"
+    // Rule 1: Column B has ">" - FIXED VERSION
     createSumForGreaterThan(worksheet, startRow) {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const sumCells = [];
+        
+        console.log(`Checking Rule 1 for row ${startRow}`); // Debug log
         
         for (let R = startRow + 1; R <= range.e.r; ++R) {
             const cellB = XLSX.utils.encode_cell({ r: R, c: 1 });
             const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });
             
-            if (worksheet[cellB] && String(worksheet[cellB].v).trim() === '-') {
+            const valueB = worksheet[cellB] ? String(worksheet[cellB].v).trim() : '';
+            
+            console.log(`  Row ${R}: B="${valueB}"`); // Debug log
+            
+            if (valueB === '-') {
                 sumCells.push(cellU);
+                console.log(`    Added ${cellU} to sum`); // Debug log
             } else {
+                console.log(`    Stopping at row ${R} - value is "${valueB}"`); // Debug log
                 break; // Stop when we find a non-dash in column B
             }
         }
         
-        return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+        const formula = sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
+        console.log(`Rule 1 result: ${formula}`); // Debug log
+        return formula;
     }
 
     // Rule 2: 6-digit number in column A
