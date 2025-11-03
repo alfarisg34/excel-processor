@@ -459,7 +459,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, and auto-fitting columns...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -484,61 +484,60 @@ class ExcelProcessor {
                         if (processedSheet[cellAddress]) {
                             // Unwrap text (remove formatting and keep plain text)
                             processedSheet[cellAddress].v = this.unwrapText(processedSheet[cellAddress].v);
-                            
-                            // DON'T force string type here - let Excel handle it
-                            // This allows text to flow into adjacent cells
                         }
                     }
                 }
 
-                // NEW STEP: Clear blank cells to fix text flow
+                // Step 3: Clear blank cells to fix text flow
                 processedSheet = this.clearBlankCells(processedSheet);
 
-                // Step 3: Delete columns B and C (index 1 and 2)
+                // Step 4: Delete columns B and C (index 1 and 2)
                 processedSheet = this.deleteColumns(processedSheet, [1, 2]);
                 
-                // [Continue with all your other steps...]
-                // Step 4: Add 3 blank columns after column E (index 4)
+                // Step 5: Add 3 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 3);
                 
-                // Step 5: Perform text-to-columns on column E (index 4) using space delimiter
+                // Step 6: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, ' ');
 
-                // Step 6: Add 1 blank columns after column E (index 4)
+                // Step 7: Add 1 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 1);
                 
-                // Step 7: Perform text-to-columns on column E (index 4) using space delimiter
+                // Step 8: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, '.');
 
-                // Step 8: Delete column F (index 5)
+                // Step 9: Delete column F (index 5)
                 processedSheet = this.deleteColumns(processedSheet, [5]);
 
-                // Step 9: Perform text-to-columns on column C (index 2) using [ delimiter
+                // Step 10: Perform text-to-columns on column C (index 2) using [ delimiter
                 processedSheet = this.textToColumns(processedSheet, 2, '[');
 
-                // Step 10: Add 10 blank columns after column D (index 3)
+                // Step 11: Add 10 blank columns after column D (index 3)
                 processedSheet = this.addBlankColumns(processedSheet, 3, 10);
 
-                // Step 11: Perform text-to-columns on column D (index 3) using ] delimiter
+                // Step 12: Perform text-to-columns on column D (index 3) using ] delimiter
                 processedSheet = this.textToColumns(processedSheet, 3, ']');
 
-                // Step 12: Perform text-to-columns on column D (index 3) using space delimiter
+                // Step 13: Perform text-to-columns on column D (index 3) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 3, ' ');
 
-                // Step 13: Add multiplication formulas in column O (index 14)
+                // Step 14: Add multiplication formulas in column O (index 14)
                 processedSheet = this.addMultiplicationFormulas(processedSheet);
 
-                // Step 14: Add multiplication formulas in column U (index 20) - O * S
+                // Step 15: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // Step 15: Add hierarchical sum formulas in column U
+                // Step 16: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
 
-                // Step 16: Apply number formatting to columns S and U
+                // Step 17: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
 
-                // Step 17: Auto-fit columns A and D-W
+                // Step 18: Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
+
+                // NEW STEP: Move text from column Y to column W
+                processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
@@ -554,6 +553,48 @@ class ExcelProcessor {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    moveColumnYToW(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Column Y is index 24 (0-based), Column W is index 22 (0-based)
+        const sourceColumn = 24; // Y
+        const targetColumn = 22; // W
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const sourceCell = XLSX.utils.encode_cell({ r: R, c: sourceColumn });
+            const targetCell = XLSX.utils.encode_cell({ r: R, c: targetColumn });
+            
+            // Check if source cell has text content
+            if (worksheet[sourceCell] && worksheet[sourceCell].v && 
+                String(worksheet[sourceCell].v).trim() !== '') {
+                
+                const sourceValue = worksheet[sourceCell].v;
+                
+                // Move the value to column W
+                if (!worksheet[targetCell]) {
+                    worksheet[targetCell] = {};
+                }
+                worksheet[targetCell].v = sourceValue;
+                
+                // Copy any formatting if it exists
+                if (worksheet[sourceCell].s) {
+                    worksheet[targetCell].s = { ...worksheet[sourceCell].s };
+                }
+                
+                // Copy cell type if specified
+                if (worksheet[sourceCell].t) {
+                    worksheet[targetCell].t = worksheet[sourceCell].t;
+                }
+                
+                // Clear the source cell after moving
+                delete worksheet[sourceCell];
+            }
+        }
+        
+        console.log('Moved text from column Y to column W');
+        return worksheet;
     }
 
     unwrapText(value) {
