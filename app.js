@@ -459,7 +459,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, and auto-fitting columns...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, and auto-fitting columns...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -485,15 +485,19 @@ class ExcelProcessor {
                             // Unwrap text (remove formatting and keep plain text)
                             processedSheet[cellAddress].v = this.unwrapText(processedSheet[cellAddress].v);
                             
-                            // Force string type to remove any formatting
-                            processedSheet[cellAddress].t = 's';
+                            // DON'T force string type here - let Excel handle it
+                            // This allows text to flow into adjacent cells
                         }
                     }
                 }
 
+                // NEW STEP: Clear blank cells to fix text flow
+                processedSheet = this.clearBlankCells(processedSheet);
+
                 // Step 3: Delete columns B and C (index 1 and 2)
                 processedSheet = this.deleteColumns(processedSheet, [1, 2]);
                 
+                // [Continue with all your other steps...]
                 // Step 4: Add 3 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 3);
                 
@@ -549,6 +553,87 @@ class ExcelProcessor {
         } catch (error) {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
+        }
+    }
+
+    unwrapText(value) {
+        if (value === null || value === undefined) return '';
+        
+        // Convert to string and clean
+        const text = String(value);
+        
+        // Remove extra whitespace, newlines, and normalize spaces
+        const cleanedText = text
+            .replace(/\r\n/g, ' ')  // Windows newlines
+            .replace(/\n/g, ' ')    // Unix newlines  
+            .replace(/\t/g, ' ')    // Tabs
+            .replace(/\s+/g, ' ')   // Multiple spaces to single space
+            .trim();                // Trim edges
+        
+        // Return empty string if result is just whitespace
+        return cleanedText === '' ? '' : cleanedText;
+    }
+
+    clearBlankCells(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                
+                if (worksheet[cellAddress]) {
+                    const cell = worksheet[cellAddress];
+                    
+                    // Check if cell is effectively blank
+                    if (cell.v === null || cell.v === undefined || 
+                        (typeof cell.v === 'string' && cell.v.trim() === '') ||
+                        cell.v === '') {
+                        
+                        // Completely remove the cell to allow text flow
+                        delete worksheet[cellAddress];
+                    } else {
+                        // For non-blank cells, remove forced string type to allow text flow
+                        // Only set type if it's actually a string with content
+                        if (typeof cell.v === 'string' && cell.v.trim() !== '') {
+                            // Don't force 's' type - let Excel handle the type automatically
+                            delete cell.t; // Remove forced type
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Recalculate the range after cleaning
+        this.updateWorksheetRange(worksheet);
+        
+        console.log('Cleared blank cells and fixed text flow');
+        return worksheet;
+    }
+
+    updateWorksheetRange(worksheet) {
+        // Find the actual used range
+        let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+        let hasData = false;
+        
+        for (const cellAddress in worksheet) {
+            if (cellAddress[0] === '!') continue; // Skip special properties
+            
+            const cellRef = XLSX.utils.decode_cell(cellAddress);
+            minRow = Math.min(minRow, cellRef.r);
+            maxRow = Math.max(maxRow, cellRef.r);
+            minCol = Math.min(minCol, cellRef.c);
+            maxCol = Math.max(maxCol, cellRef.c);
+            hasData = true;
+        }
+        
+        if (hasData) {
+            worksheet['!ref'] = XLSX.utils.encode_range({
+                s: { r: minRow, c: minCol },
+                e: { r: maxRow, c: maxCol }
+            });
+        } else {
+            // If no data, set a minimal range
+            worksheet['!ref'] = 'A1:A1';
         }
     }
 
@@ -692,18 +777,9 @@ class ExcelProcessor {
                     }
                     
                     worksheet[targetCell].v = value;
-                    worksheet[targetCell].t = 's'; // Force string type
+                    // DON'T force string type - let Excel handle it automatically
+                    // This allows text to flow into adjacent cells
                 });
-                
-                // Clear remaining cells in the row if split values are fewer than previous splits
-                for (let C = sourceColumnIndex + splitValues.length; C <= range.e.c; ++C) {
-                    const remainingCell = XLSX.utils.encode_cell({ r: R, c: C });
-                    // Don't delete if it's beyond our source column data
-                    if (C > sourceColumnIndex + splitValues.length - 1) {
-                        // Keep existing data in other columns
-                        continue;
-                    }
-                }
             }
         }
         
