@@ -907,7 +907,9 @@ class ExcelProcessor {
         try {
             // Generate filename with timestamp
             const originalName = this.fileInput.files[0]?.name.replace(/\.[^/.]+$/, "") || 'processed';
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-');
+            const date = new Date();
+            date.setHours(date.getHours() + 7); // add +7 hours
+            const timestamp = date.toISOString().slice(0, 19).replace(/[:]/g, '-');
             const filename = `${originalName}_processed_${timestamp}.xlsx`;
             
             // Download the file
