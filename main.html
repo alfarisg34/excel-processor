@@ -83,10 +83,16 @@
             color: #bdc3c7;
             transition: all 0.3s;
             white-space: nowrap;
+            cursor: pointer;
         }
 
         .menu-item:hover {
             background: #34495e;
+            color: white;
+        }
+
+        .menu-item.active {
+            background: #3498db;
             color: white;
         }
 
@@ -117,10 +123,26 @@
             padding: 20px;
             background: #ecf0f1;
             transition: all 0.3s ease;
+            overflow-y: auto;
         }
 
         .main-content.expanded {
             margin-left: 0;
+        }
+
+        /* Page Content Styles */
+        .page-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .page-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .container { 
@@ -164,10 +186,39 @@
         .status.error { background: #f8d7da; color: #721c24; }
         .hidden { display: none; }
 
-        /* Icon styles using Unicode */
-        .icon {
-            font-style: normal;
+        /* Placeholder Page Styles */
+        .placeholder-page {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .placeholder-icon {
+            font-size: 80px;
+            color: #bdc3c7;
+            margin-bottom: 20px;
+        }
+
+        .placeholder-title {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .placeholder-description {
+            font-size: 18px;
+            color: #7f8c8d;
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+
+        .coming-soon {
+            background: #f39c12;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
             display: inline-block;
+            margin-bottom: 30px;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -180,15 +231,15 @@
             <button class="toggle-btn" id="toggleSidebar">☰</button>
         </div>
         <div class="sidebar-menu">
-            <a href="#" class="menu-item">
+            <a href="#excel-processor" class="menu-item active" data-page="excel-processor">
                 <i class="fa-solid fa-gear"></i>
                 <span class="menu-text">Excel Processor</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="#email-blaster" class="menu-item" data-page="email-blaster">
                 <i class="fa-solid fa-envelope"></i>
                 <span class="menu-text">Email Blaster</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="#wa-blaster" class="menu-item" data-page="wa-blaster">
                 <i class="fa-brands fa-whatsapp"></i>
                 <span class="menu-text">WA Blaster</span>
             </a>
@@ -197,48 +248,148 @@
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
-        <div class="container">
-            <h1>Excel File Processor</h1>
-            <p>Upload your Excel file and it will be processed automatically</p>
-            
-            <!-- Upload Area -->
-            <div class="upload-area" id="dropZone">
-                <h3>📁 Upload Excel File</h3>
-                <p>Click here or drag & drop your Excel file</p>
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+        <!-- Excel Processor Page -->
+        <div id="excel-processor" class="page-content active">
+            <div class="container">
+                <h1>Excel File Processor</h1>
+                <p>Upload your Excel file and it will be processed automatically</p>
+                
+                <!-- Upload Area -->
+                <div class="upload-area" id="dropZone">
+                    <h3>📁 Upload Excel File</h3>
+                    <p>Click here or drag & drop your Excel file</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+                </div>
+
+                <!-- Download Button (Initially Hidden) -->
+                <button class="btn hidden" id="downloadBtn">⬇️ Download Processed File</button>
+
+                <div id="status" class="status info">Please upload an Excel file to begin processing</div>
             </div>
+        </div>
 
-            <!-- Download Button (Initially Hidden) -->
-            <button class="btn hidden" id="downloadBtn">⬇️ Download Processed File</button>
+        <!-- Email Blaster Page -->
+        <div id="email-blaster" class="page-content">
+            <div class="placeholder-page">
+                <div class="placeholder-icon">
+                    <i class="fa-solid fa-envelope"></i>
+                </div>
+                <div class="coming-soon">Coming Soon</div>
+                <h1 class="placeholder-title">Email Blaster</h1>
+                <p class="placeholder-description">
+                    Send bulk emails effortlessly. Upload your contact list and message template, 
+                    and we'll handle the rest. Perfect for newsletters, announcements, and marketing campaigns.
+                </p>
+                <button class="btn" disabled>
+                    <i class="fa-solid fa-lock"></i> Under Development
+                </button>
+            </div>
+        </div>
 
-            <div id="status" class="status info">Please upload an Excel file to begin processing</div>
+        <!-- WA Blaster Page -->
+        <div id="wa-blaster" class="page-content">
+            <div class="placeholder-page">
+                <div class="placeholder-icon">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <div class="coming-soon">Coming Soon</div>
+                <h1 class="placeholder-title">WhatsApp Blaster</h1>
+                <p class="placeholder-description">
+                    Send WhatsApp messages in bulk. Perfect for business announcements, 
+                    event invitations, and customer notifications. Safe and efficient messaging.
+                </p>
+                <button class="btn" disabled>
+                    <i class="fa-solid fa-lock"></i> Under Development
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Include SheetJS from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
-        // Sidebar functionality
-        class SidebarManager {
+        // Sidebar and Navigation functionality
+        class AppNavigation {
             constructor() {
                 this.sidebar = document.getElementById('sidebar');
                 this.mainContent = document.getElementById('mainContent');
                 this.toggleBtn = document.getElementById('toggleSidebar');
+                this.menuItems = document.querySelectorAll('.menu-item');
+                this.pageContents = document.querySelectorAll('.page-content');
                 this.isCollapsed = false;
                 
                 this.init();
             }
             
             init() {
+                // Sidebar toggle
                 this.toggleBtn.addEventListener('click', () => this.toggleSidebar());
+                
+                // Navigation click handlers
+                this.menuItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const pageId = item.getAttribute('data-page');
+                        this.navigateToPage(pageId);
+                    });
+                });
                 
                 // Load saved state from localStorage
                 const savedState = localStorage.getItem('sidebarCollapsed');
                 if (savedState === 'true') {
                     this.collapseSidebar();
                 } else {
-                    this.expandSidebar(); // Ensure correct initial state
+                    this.expandSidebar();
                 }
+
+                // Handle URL hash on page load
+                this.handleInitialRoute();
+            }
+            
+            handleInitialRoute() {
+                const hash = window.location.hash.substring(1);
+                if (hash && this.isValidPage(hash)) {
+                    this.navigateToPage(hash);
+                } else {
+                    this.navigateToPage('excel-processor');
+                }
+            }
+            
+            isValidPage(pageId) {
+                return document.getElementById(pageId) !== null;
+            }
+            
+            navigateToPage(pageId) {
+                // Update URL without page reload
+                window.history.pushState(null, null, `#${pageId}`);
+                
+                // Update active menu item
+                this.menuItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.getAttribute('data-page') === pageId) {
+                        item.classList.add('active');
+                    }
+                });
+                
+                // Show selected page content
+                this.pageContents.forEach(page => {
+                    page.classList.remove('active');
+                    if (page.id === pageId) {
+                        page.classList.add('active');
+                    }
+                });
+                
+                // Update page title
+                this.updatePageTitle(pageId);
+            }
+            
+            updatePageTitle(pageId) {
+                const titles = {
+                    'excel-processor': 'Excel Processor - Simplify Your Life',
+                    'email-blaster': 'Email Blaster - Simplify Your Life',
+                    'wa-blaster': 'WA Blaster - Simplify Your Life'
+                };
+                document.title = titles[pageId] || 'Simplify Your Life';
             }
             
             toggleSidebar() {
@@ -253,7 +404,7 @@
                 this.sidebar.classList.add('collapsed');
                 this.mainContent.classList.add('expanded');
                 this.isCollapsed = true;
-                this.toggleBtn.innerHTML = '✕'; // X when collapsed
+                this.toggleBtn.innerHTML = '→';
                 localStorage.setItem('sidebarCollapsed', 'true');
             }
 
@@ -261,14 +412,22 @@
                 this.sidebar.classList.remove('collapsed');
                 this.mainContent.classList.remove('expanded');
                 this.isCollapsed = false;
-                this.toggleBtn.innerHTML = '☰'; // Hamburger when expanded
+                this.toggleBtn.innerHTML = '☰';
                 localStorage.setItem('sidebarCollapsed', 'false');
             }
         }
 
-        // Initialize sidebar when page loads
+        // Initialize app when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            new SidebarManager();
+            window.appNavigation = new AppNavigation();
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash && window.appNavigation.isValidPage(hash)) {
+                window.appNavigation.navigateToPage(hash);
+            }
         });
     </script>
     <script src="app.js"></script>
