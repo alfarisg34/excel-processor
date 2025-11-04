@@ -725,7 +725,7 @@ class ExcelProcessor {
     applyNumberFormattingAsString(worksheet) {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         
-        const columnsToFormat = [18, 20]; // S and U
+        const columnsToFormat = [20]; // U
         
         columnsToFormat.forEach(columnIndex => {
             for (let R = range.s.r; R <= range.e.r; ++R) {
