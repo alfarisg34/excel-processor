@@ -459,7 +459,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
 
         try {
             // Create a copy of the workbook
@@ -490,6 +490,9 @@ class ExcelProcessor {
 
                 // Step 3: Clear blank cells to fix text flow
                 processedSheet = this.clearBlankCells(processedSheet);
+
+                // NEW STEP: Insert rows above and below cells containing "Jakarta"
+                processedSheet = this.insertRowsAroundJakarta(processedSheet);
 
                 // Step 4: Delete columns B and C (index 1 and 2)
                 processedSheet = this.deleteColumns(processedSheet, [1, 2]);
@@ -536,7 +539,7 @@ class ExcelProcessor {
                 // Step 18: Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
 
-                // NEW STEP: Move text from column Y to column W
+                // Step 19: Move text from column Y to column W
                 processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
@@ -552,6 +555,96 @@ class ExcelProcessor {
         } catch (error) {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
+        }
+    }
+
+    insertRowsAroundJakarta(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        let rowsToInsert = [];
+        
+        // First, find all rows that contain "Jakarta" in any cell
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                
+                if (worksheet[cellAddress] && worksheet[cellAddress].v) {
+                    const cellValue = String(worksheet[cellAddress].v);
+                    
+                    if (cellValue.toLowerCase().includes('jakarta,')) {
+                        // Found a row with "Jakarta", mark it for row insertion
+                        if (!rowsToInsert.includes(R)) {
+                            rowsToInsert.push(R);
+                        }
+                        break; // No need to check other cells in this row
+                    }
+                }
+            }
+        }
+        
+        // Sort in descending order to maintain correct indices when inserting
+        rowsToInsert.sort((a, b) => b - a);
+        
+        console.log(`Found ${rowsToInsert.length} rows containing "Jakarta"`);
+        
+        // Insert rows above and below each Jakarta row
+        rowsToInsert.forEach(rowIndex => {
+            console.log(`Inserting rows around row ${rowIndex + 1}`);
+            
+            // Insert row BELOW first (so it doesn't affect the row indices for ABOVE insertion)
+            this.insertRow(worksheet, rowIndex + 1); // Insert below current row
+            
+            // Insert row ABOVE
+            this.insertRow(worksheet, rowIndex); // Insert above current row (now rowIndex is still correct)
+        });
+        
+        // Update the worksheet range after all insertions
+        this.updateWorksheetRange(worksheet);
+        
+        console.log(`Inserted ${rowsToInsert.length * 2} rows around Jakarta cells`);
+        return worksheet;
+    }
+
+    insertRow(worksheet, atRow) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Increase the row range
+        range.e.r += 1;
+        
+        // Shift all rows from the insertion point downward
+        for (let R = range.e.r; R > atRow; --R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const currentCell = XLSX.utils.encode_cell({ r: R, c: C });
+                const sourceCell = XLSX.utils.encode_cell({ r: R - 1, c: C });
+                
+                if (worksheet[sourceCell]) {
+                    worksheet[currentCell] = { ...worksheet[sourceCell] };
+                } else {
+                    delete worksheet[currentCell];
+                }
+            }
+        }
+        
+        // Clear the newly inserted row
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const newCell = XLSX.utils.encode_cell({ r: atRow, c: C });
+            delete worksheet[newCell];
+        }
+        
+        // Update merge ranges if they exist
+        if (worksheet['!merges']) {
+            worksheet['!merges'] = worksheet['!merges'].map(merge => {
+                const newMerge = { ...merge };
+                
+                // Adjust row indices for merges below the insertion point
+                if (newMerge.s.r >= atRow) {
+                    newMerge.s.r += 1;
+                }
+                if (newMerge.e.r >= atRow) {
+                    newMerge.e.r += 1;
+                }
+                
+                return newMerge;
+            });
         }
     }
 
