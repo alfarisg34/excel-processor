@@ -252,13 +252,31 @@
         <div id="excel-processor" class="page-content active">
             <div class="container">
                 <h1>Excel File Processor</h1>
-                <p>Upload your Excel file and it will be processed automatically</p>
-                
-                <!-- Upload Area -->
-                <div class="upload-area" id="dropZone">
-                    <h3>📁 Upload Excel File</h3>
-                    <p>Click here or drag & drop your Excel file</p>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+                <p>Choose your processing method:</p>
+                <!-- Regular Processing -->
+                <div style="margin-bottom: 40px; padding: 20px; border: 2px solid #007cba; border-radius: 10px;">
+                    <h2 style="color: #007cba; margin-bottom: 15px;">Standard Processing</h2>
+                    <p style="margin-bottom: 15px; color: #666;">Use this for regular Excel file processing</p>
+                    
+                    <!-- Upload Area -->
+                    <div class="upload-area" id="dropZone">
+                        <h3>📁 Upload Excel File</h3>
+                        <p>Click here or drag & drop your Excel file</p>
+                        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden" />
+                    </div>
+                </div>
+
+                <!-- Semula Menjadi Processing -->
+                <div style="margin-bottom: 40px; padding: 20px; border: 2px solid #28a745; border-radius: 10px;">
+                    <h2 style="color: #28a745; margin-bottom: 15px;">Semula Menjadi Processing</h2>
+                    <p style="margin-bottom: 15px; color: #666;">Use this for enhanced processing with additional steps</p>
+                    
+                    <!-- Upload Area for Semula Menjadi -->
+                    <div class="upload-area" id="dropZoneSemulaMenjadi">
+                        <h3>🚀 Upload for Semula Menjadi</h3>
+                        <p>Click here or drag & drop your Excel file</p>
+                        <input type="file" id="fileInputSemulaMenjadi" accept=".xlsx,.xls,.csv" class="hidden" />
+                    </div>
                 </div>
 
                 <!-- Download Button (Initially Hidden) -->

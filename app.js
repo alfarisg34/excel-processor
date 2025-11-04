@@ -8,18 +8,91 @@ class ExcelProcessor {
     init() {
         // DOM elements
         this.fileInput = document.getElementById('fileInput');
+        this.fileInputSemulaMenjadi = document.getElementById('fileInputSemulaMenjadi');
         this.dropZone = document.getElementById('dropZone');
+        this.dropZoneSemulaMenjadi = document.getElementById('dropZoneSemulaMenjadi');
         this.downloadBtn = document.getElementById('downloadBtn');
         this.status = document.getElementById('status');
 
-        // Event listeners
+        // Event listeners for standard processing
         this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         this.dropZone.addEventListener('click', () => this.fileInput.click());
         this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.dropZone.addEventListener('drop', (e) => this.handleFileDrop(e));
+
+        // Event listeners for semula menjadi processing
+        this.fileInputSemulaMenjadi.addEventListener('change', (e) => this.handleFileSelectSemulaMenjadi(e));
+        this.dropZoneSemulaMenjadi.addEventListener('click', () => this.fileInputSemulaMenjadi.click());
+        this.dropZoneSemulaMenjadi.addEventListener('dragover', (e) => this.handleDragOverSemulaMenjadi(e));
+        this.dropZoneSemulaMenjadi.addEventListener('drop', (e) => this.handleFileDropSemulaMenjadi(e));
+
         this.downloadBtn.addEventListener('click', () => this.downloadFile());
 
         this.updateStatus('Please upload an Excel file to begin processing', 'info');
+    }
+
+    handleDragOverSemulaMenjadi(e) {
+        e.preventDefault();
+        this.dropZoneSemulaMenjadi.style.borderColor = '#28a745';
+        this.dropZoneSemulaMenjadi.style.backgroundColor = '#e8f5e8';
+    }
+
+    handleFileDropSemulaMenjadi(e) {
+        e.preventDefault();
+        this.dropZoneSemulaMenjadi.style.borderColor = '#28a745';
+        this.dropZoneSemulaMenjadi.style.backgroundColor = '#f8f9fa';
+        
+        const files = e.dataTransfer.files;
+        if (files.length) {
+            this.loadFileSemulaMenjadi(files[0]);
+        }
+    }
+
+    handleFileSelectSemulaMenjadi(e) {
+        const files = e.target.files;
+        if (files.length) {
+            this.loadFileSemulaMenjadi(files[0]);
+        }
+    }
+
+    loadFileSemulaMenjadi(file) {
+        if (!file.name.match(/\.(xlsx|xls|csv)$/)) {
+            this.updateStatus('❌ Please upload a valid Excel file (.xlsx, .xls, .csv)', 'error');
+            return;
+        }
+
+        this.updateStatus('⏳ Loading file for Semula Menjadi processing...', 'info');
+        this.dropZoneSemulaMenjadi.innerHTML = '<h3>⏳ Processing...</h3><p>Semula Menjadi - Please wait</p>';
+
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                this.workbook = XLSX.read(data, { type: 'array' });
+                this.updateStatus('✅ File loaded! Starting Semula Menjadi processing...', 'info');
+                
+                // Automatically start Semula Menjadi processing
+                setTimeout(() => this.processFileSemulaMenjadi(), 500);
+                
+            } catch (error) {
+                this.updateStatus('❌ Error reading file: ' + error.message, 'error');
+                this.resetUploadAreaSemulaMenjadi();
+            }
+        };
+
+        reader.onerror = () => {
+            this.updateStatus('❌ Error reading file', 'error');
+            this.resetUploadAreaSemulaMenjadi();
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    resetUploadAreaSemulaMenjadi() {
+        this.dropZoneSemulaMenjadi.innerHTML = '<h3>🚀 Upload for Semula Menjadi</h3><p>Click here or drag & drop your Excel file</p>';
+        this.dropZoneSemulaMenjadi.style.borderColor = '#28a745';
+        this.dropZoneSemulaMenjadi.style.backgroundColor = '#f8f9fa';
     }
 
     handleDragOver(e) {
@@ -554,6 +627,43 @@ class ExcelProcessor {
             
         } catch (error) {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
+            this.resetUploadArea();
+        }
+    }
+
+    processFileSemulaMenjadi() {
+        if (!this.workbook) {
+            this.updateStatus('❌ No file loaded', 'error');
+            return;
+        }
+
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps...', 'info');
+
+        try {
+            // First, do the normal processFile()
+            this.processFile();
+            
+            // Wait a bit for the first processing to complete, then do additional steps
+            setTimeout(() => {
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps...', 'info');
+                
+                // Process each worksheet for additional steps
+                this.workbook.SheetNames.forEach(sheetName => {
+                    let processedSheet = this.processedWorkbook.Sheets[sheetName];
+                    
+                    // Step 1: Add custom formatting or formulas
+                    // processedSheet = this.addCustomSemulaMenjadiFormulas(processedSheet);
+                    
+                    // Update the processed sheet
+                    this.processedWorkbook.Sheets[sheetName] = processedSheet;
+                });
+                
+                this.updateStatus('✅ Semula Menjadi processing complete! Click download button below.', 'success');
+                
+            }, 1000);
+            
+        } catch (error) {
+            this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
             this.resetUploadArea();
         }
     }
