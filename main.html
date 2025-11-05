@@ -220,6 +220,23 @@
             display: inline-block;
             margin-bottom: 30px;
         }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .copy-btn.copied {
+            background: #28a745 !important;
+        }
+
+        .copy-btn.copied::after {
+            content: " ✓";
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -253,6 +270,7 @@
             <div class="container">
                 <h1>Excel File Processor</h1>
                 <p>Choose your processing method:</p>
+                
                 <!-- Regular Processing -->
                 <div style="margin-bottom: 40px; padding: 20px; border: 2px solid #007cba; border-radius: 10px;">
                     <h2 style="color: #007cba; margin-bottom: 15px;">Standard Processing</h2>
@@ -276,6 +294,54 @@
                         <h3>🚀 Upload for Semula Menjadi</h3>
                         <p>Click here or drag & drop your Excel file</p>
                         <input type="file" id="fileInputSemulaMenjadi" accept=".xlsx,.xls,.csv" class="hidden" />
+                    </div>
+                </div>
+
+                <!-- Notes Section -->
+                <div style="margin-bottom: 40px; padding: 20px; border: 2px solid #6c757d; border-radius: 10px; background: #f8f9fa;">
+                    <h2 style="color: #6c757d; margin-bottom: 20px; text-align: center;">📝 Color Notes</h2>
+                    
+                    <!-- Rule 1: Code 322 -->
+                    <div style="margin-bottom: 15px; padding: 15px; border-radius: 8px; background: white; border-left: 4px solid #0C0C5E;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <h4 style="color: #0C0C5E; margin: 0;">Code 322 (example: 026.04.DN)</h4>
+                            <button class="copy-btn" data-color="#0C0C5E" style="background: #0C0C5E; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.3s;">
+                                <i class="fa-regular fa-copy"></i> Copy Color
+                            </button>
+                        </div>
+                        <p style="margin: 5px 0; color: #666; font-size: 14px;">Dark Blue</p>
+                        <p style="margin: 0; color: #888; font-size: 12px; font-family: monospace;">Hex: #0C0C5E</p>
+                    </div>
+
+                    <!-- Rule 2: 4 digit number -->
+                    <div style="margin-bottom: 15px; padding: 15px; border-radius: 8px; background: white; border-left: 4px solid #0000FF;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <h4 style="color: #0000FF; margin: 0;">4 digit number (example: 2175)</h4>
+                            <button class="copy-btn" data-color="#0000FF" style="background: #0000FF; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.3s;">
+                                <i class="fa-regular fa-copy"></i> Copy Color
+                            </button>
+                        </div>
+                        <p style="margin: 5px 0; color: #666; font-size: 14px;">Blue</p>
+                        <p style="margin: 0; color: #888; font-size: 12px; font-family: monospace;">Hex: #0000FF</p>
+                    </div>
+
+                    <!-- Rule 3: Code 43 -->
+                    <div style="margin-bottom: 15px; padding: 15px; border-radius: 8px; background: white; border-left: 4px solid #B10301;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <h4 style="color: #B10301; margin: 0;">Code 43 (example: 2175.AEC)</h4>
+                            <button class="copy-btn" data-color="#B10301" style="background: #B10301; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.3s;">
+                                <i class="fa-regular fa-copy"></i> Copy Color
+                            </button>
+                        </div>
+                        <p style="margin: 5px 0; color: #666; font-size: 14px;">Red</p>
+                        <p style="margin: 0; color: #888; font-size: 12px; font-family: monospace;">Hex: #B10301</p>
+                    </div>
+
+                    <!-- Rule 4: Code 433 or 3 digit number -->
+                    <div style="padding: 15px; border-radius: 8px; background: white; border-left: 4px solid #495057;">
+                        <h4 style="color: #495057; margin: 0 0 8px 0; font-weight: bold;">Code 433 or 3 digit number (example: 2175.AEC.001 or 051)</h4>
+                        <p style="margin: 5px 0; color: #666; font-size: 14px;"><strong>Bold Text</strong></p>
+                        <p style="margin: 0; color: #888; font-size: 12px;">No color - apply bold formatting only</p>
                     </div>
                 </div>
 
@@ -446,6 +512,82 @@
             if (hash && window.appNavigation.isValidPage(hash)) {
                 window.appNavigation.navigateToPage(hash);
             }
+        });
+
+        // Add this to your existing JavaScript, preferably after the AppNavigation class
+        class ColorNotesManager {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                // Add event listeners to all copy buttons
+                document.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('copy-btn') || e.target.closest('.copy-btn')) {
+                        const button = e.target.classList.contains('copy-btn') ? e.target : e.target.closest('.copy-btn');
+                        this.copyHexColor(button);
+                    }
+                });
+            }
+            
+            copyHexColor(button) {
+                const hexColor = button.getAttribute('data-color');
+                
+                // Use the Clipboard API to copy the color
+                navigator.clipboard.writeText(hexColor).then(() => {
+                    // Show success feedback
+                    const originalText = button.innerHTML;
+                    const originalBackground = button.style.background;
+                    
+                    button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                    button.classList.add('copied');
+                    
+                    // Reset after 2 seconds
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                    
+                }).catch(err => {
+                    console.error('Failed to copy color: ', err);
+                    // Fallback for older browsers
+                    this.fallbackCopyText(hexColor, button);
+                });
+            }
+            
+            fallbackCopyText(text, button) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    document.execCommand('copy');
+                    // Show success feedback
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                    button.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Fallback copy failed: ', err);
+                    alert('Failed to copy color code. Please copy manually: ' + text);
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // Initialize the color notes manager when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.colorNotesManager = new ColorNotesManager();
         });
     </script>
     <script src="app.js"></script>
