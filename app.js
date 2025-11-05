@@ -31,6 +31,204 @@ class ExcelProcessor {
         this.updateStatus('Please upload an Excel file to begin processing', 'info');
     }
 
+    processFile() {
+        if (!this.workbook) {
+            this.updateStatus('❌ No file loaded', 'error');
+            return;
+        }
+
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
+
+        try {
+            // Create a copy of the workbook
+            this.processedWorkbook = XLSX.utils.book_new();
+
+            // Process each worksheet
+            this.workbook.SheetNames.forEach(sheetName => {
+                let processedSheet = this.workbook.Sheets[sheetName];
+
+                // Step 1: Unmerge all cells by removing merge ranges
+                if (processedSheet['!merges']) {
+                    processedSheet['!merges'] = [];
+                }
+
+                // Step 2: Process each cell to unwrap text
+                const range = XLSX.utils.decode_range(processedSheet['!ref']);
+                
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                        
+                        if (processedSheet[cellAddress]) {
+                            // Unwrap text (remove formatting and keep plain text)
+                            processedSheet[cellAddress].v = this.unwrapText(processedSheet[cellAddress].v);
+                        }
+                    }
+                }
+
+                // Step 3: Clear blank cells to fix text flow
+                processedSheet = this.clearBlankCells(processedSheet);
+
+                // NEW STEP: Insert rows above and below cells containing "Jakarta"
+                processedSheet = this.insertRowsAroundJakarta(processedSheet);
+
+                // Step 4: Delete columns B and C (index 1 and 2)
+                processedSheet = this.deleteColumns(processedSheet, [1, 2]);
+                
+                // Step 5: Add 3 blank columns after column E (index 4)
+                processedSheet = this.addBlankColumns(processedSheet, 4, 3);
+                
+                // Step 6: Perform text-to-columns on column E (index 4) using space delimiter
+                processedSheet = this.textToColumns(processedSheet, 4, ' ');
+
+                // Step 7: Add 1 blank columns after column E (index 4)
+                processedSheet = this.addBlankColumns(processedSheet, 4, 1);
+                
+                // Step 8: Perform text-to-columns on column E (index 4) using space delimiter
+                processedSheet = this.textToColumns(processedSheet, 4, '.');
+
+                // Step 9: Delete column F (index 5)
+                processedSheet = this.deleteColumns(processedSheet, [5]);
+
+                // Step 10: Perform text-to-columns on column C (index 2) using [ delimiter
+                processedSheet = this.textToColumns(processedSheet, 2, '[');
+
+                // Step 11: Add 10 blank columns after column D (index 3)
+                processedSheet = this.addBlankColumns(processedSheet, 3, 10);
+
+                // Step 12: Perform text-to-columns on column D (index 3) using ] delimiter
+                processedSheet = this.textToColumns(processedSheet, 3, ']');
+
+                // Step 13: Perform text-to-columns on column D (index 3) using space delimiter
+                processedSheet = this.textToColumns(processedSheet, 3, ' ');
+
+                // Step 14: Add multiplication formulas in column O (index 14)
+                processedSheet = this.addMultiplicationFormulas(processedSheet);
+
+                // Step 15: Add multiplication formulas in column U (index 20) - O * S
+                processedSheet = this.addMultiplicationFormulasU(processedSheet);
+
+                // NEW STEP: Convert column S values to numbers
+                processedSheet = this.convertColumnSToNumbers(processedSheet);
+
+                // Step 16: Add hierarchical sum formulas in column U
+                processedSheet = this.addHierarchicalSumFormulas(processedSheet);
+
+                // Step 17: Apply number formatting to columns S and U
+                processedSheet = this.applyNumberFormattingAsString(processedSheet);
+
+                // Step 18: Auto-fit columns A and D-W
+                processedSheet = this.autoFitColumns(processedSheet);
+
+                // Step 19: Move text from column Y to column W
+                processedSheet = this.moveColumnYToW(processedSheet);
+                
+                XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
+            });
+
+            // Show download button
+            this.downloadBtn.classList.remove('hidden');
+            this.downloadBtn.classList.add('btn-success');
+            
+            this.updateStatus('✅ File processed successfully! Click download button below.', 'success');
+            this.dropZone.innerHTML = '<h3>✅ Processing Complete</h3><p>Your file is ready for download</p>';
+            
+        } catch (error) {
+            this.updateStatus('❌ Error processing file: ' + error.message, 'error');
+            this.resetUploadArea();
+        }
+    }
+
+    processFileSemulaMenjadi() {
+        if (!this.workbook) {
+            this.updateStatus('❌ No file loaded', 'error');
+            return;
+        }
+
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps...', 'info');
+
+        try {
+            // First, do the normal processFile()
+            this.processFile();
+            
+            // Wait a bit for the first processing to complete, then do additional steps
+            setTimeout(() => {
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps...', 'info');
+                
+                // Process each worksheet for additional steps
+                this.workbook.SheetNames.forEach(sheetName => {
+                    let processedSheet = this.processedWorkbook.Sheets[sheetName];
+                    
+                    // Step 1: Add custom formatting or formulas
+                    // processedSheet = this.addCustomSemulaMenjadiFormulas(processedSheet);
+                    
+                    // Update the processed sheet
+                    this.processedWorkbook.Sheets[sheetName] = processedSheet;
+                });
+                
+                this.updateStatus('✅ Semula Menjadi processing complete! Click download button below.', 'success');
+                
+            }, 1000);
+            
+        } catch (error) {
+            this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
+            this.resetUploadArea();
+        }
+    }
+
+    convertColumnSToNumbers(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Column S is index 18 (0-based)
+        const columnSIndex = 18;
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: columnSIndex });
+            
+            if (worksheet[cellAddress]) {
+                const cell = worksheet[cellAddress];
+                const originalValue = cell.v;
+                
+                // Skip if cell already has a formula
+                if (cell.f) {
+                    continue;
+                }
+                
+                // Convert to number if it's a string that represents a number
+                if (typeof originalValue === 'string') {
+                    // Remove any formatting characters (thousands separators, currency symbols, etc.)
+                    const cleanValue = originalValue
+                        .replace(/\./g, '')  // Remove thousands separators (dots)
+                        .replace(/,/g, '.')  // Convert comma decimal to dot decimal
+                        .replace(/[^\d.-]/g, '') // Remove any non-numeric characters except dot and minus
+                        .trim();
+                    
+                    // Convert to number
+                    const numericValue = parseFloat(cleanValue);
+                    
+                    // If it's a valid number, update the cell
+                    if (!isNaN(numericValue) && isFinite(numericValue)) {
+                        worksheet[cellAddress].v = numericValue;
+                        worksheet[cellAddress].t = 'n'; // Set type to number
+                        
+                        console.log(`Converted S${R + 1}: "${originalValue}" -> ${numericValue}`);
+                    } else if (cleanValue === '' || originalValue.trim() === '') {
+                        // If empty string, set to empty
+                        worksheet[cellAddress].v = '';
+                        worksheet[cellAddress].t = 's'; // Set type to string
+                    }
+                    // If not a valid number, leave as is (it might be text)
+                } else if (typeof originalValue === 'number') {
+                    // Already a number, ensure type is set correctly
+                    worksheet[cellAddress].t = 'n';
+                }
+            }
+        }
+        
+        console.log('Converted column S values to numbers');
+        return worksheet;
+    }
+
     handleDragOverSemulaMenjadi(e) {
         e.preventDefault();
         this.dropZoneSemulaMenjadi.style.borderColor = '#28a745';
@@ -524,148 +722,6 @@ class ExcelProcessor {
         }
         
         return sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
-    }
-
-    processFile() {
-        if (!this.workbook) {
-            this.updateStatus('❌ No file loaded', 'error');
-            return;
-        }
-
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
-
-        try {
-            // Create a copy of the workbook
-            this.processedWorkbook = XLSX.utils.book_new();
-
-            // Process each worksheet
-            this.workbook.SheetNames.forEach(sheetName => {
-                let processedSheet = this.workbook.Sheets[sheetName];
-
-                // Step 1: Unmerge all cells by removing merge ranges
-                if (processedSheet['!merges']) {
-                    processedSheet['!merges'] = [];
-                }
-
-                // Step 2: Process each cell to unwrap text
-                const range = XLSX.utils.decode_range(processedSheet['!ref']);
-                
-                for (let R = range.s.r; R <= range.e.r; ++R) {
-                    for (let C = range.s.c; C <= range.e.c; ++C) {
-                        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-                        
-                        if (processedSheet[cellAddress]) {
-                            // Unwrap text (remove formatting and keep plain text)
-                            processedSheet[cellAddress].v = this.unwrapText(processedSheet[cellAddress].v);
-                        }
-                    }
-                }
-
-                // Step 3: Clear blank cells to fix text flow
-                processedSheet = this.clearBlankCells(processedSheet);
-
-                // NEW STEP: Insert rows above and below cells containing "Jakarta"
-                processedSheet = this.insertRowsAroundJakarta(processedSheet);
-
-                // Step 4: Delete columns B and C (index 1 and 2)
-                processedSheet = this.deleteColumns(processedSheet, [1, 2]);
-                
-                // Step 5: Add 3 blank columns after column E (index 4)
-                processedSheet = this.addBlankColumns(processedSheet, 4, 3);
-                
-                // Step 6: Perform text-to-columns on column E (index 4) using space delimiter
-                processedSheet = this.textToColumns(processedSheet, 4, ' ');
-
-                // Step 7: Add 1 blank columns after column E (index 4)
-                processedSheet = this.addBlankColumns(processedSheet, 4, 1);
-                
-                // Step 8: Perform text-to-columns on column E (index 4) using space delimiter
-                processedSheet = this.textToColumns(processedSheet, 4, '.');
-
-                // Step 9: Delete column F (index 5)
-                processedSheet = this.deleteColumns(processedSheet, [5]);
-
-                // Step 10: Perform text-to-columns on column C (index 2) using [ delimiter
-                processedSheet = this.textToColumns(processedSheet, 2, '[');
-
-                // Step 11: Add 10 blank columns after column D (index 3)
-                processedSheet = this.addBlankColumns(processedSheet, 3, 10);
-
-                // Step 12: Perform text-to-columns on column D (index 3) using ] delimiter
-                processedSheet = this.textToColumns(processedSheet, 3, ']');
-
-                // Step 13: Perform text-to-columns on column D (index 3) using space delimiter
-                processedSheet = this.textToColumns(processedSheet, 3, ' ');
-
-                // Step 14: Add multiplication formulas in column O (index 14)
-                processedSheet = this.addMultiplicationFormulas(processedSheet);
-
-                // Step 15: Add multiplication formulas in column U (index 20) - O * S
-                processedSheet = this.addMultiplicationFormulasU(processedSheet);
-
-                // Step 16: Add hierarchical sum formulas in column U
-                processedSheet = this.addHierarchicalSumFormulas(processedSheet);
-
-                // Step 17: Apply number formatting to columns S and U
-                processedSheet = this.applyNumberFormattingAsString(processedSheet);
-
-                // Step 18: Auto-fit columns A and D-W
-                processedSheet = this.autoFitColumns(processedSheet);
-
-                // Step 19: Move text from column Y to column W
-                processedSheet = this.moveColumnYToW(processedSheet);
-                
-                XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
-            });
-
-            // Show download button
-            this.downloadBtn.classList.remove('hidden');
-            this.downloadBtn.classList.add('btn-success');
-            
-            this.updateStatus('✅ File processed successfully! Click download button below.', 'success');
-            this.dropZone.innerHTML = '<h3>✅ Processing Complete</h3><p>Your file is ready for download</p>';
-            
-        } catch (error) {
-            this.updateStatus('❌ Error processing file: ' + error.message, 'error');
-            this.resetUploadArea();
-        }
-    }
-
-    processFileSemulaMenjadi() {
-        if (!this.workbook) {
-            this.updateStatus('❌ No file loaded', 'error');
-            return;
-        }
-
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps...', 'info');
-
-        try {
-            // First, do the normal processFile()
-            this.processFile();
-            
-            // Wait a bit for the first processing to complete, then do additional steps
-            setTimeout(() => {
-                this.updateStatus('🔄 Applying additional Semula Menjadi steps...', 'info');
-                
-                // Process each worksheet for additional steps
-                this.workbook.SheetNames.forEach(sheetName => {
-                    let processedSheet = this.processedWorkbook.Sheets[sheetName];
-                    
-                    // Step 1: Add custom formatting or formulas
-                    // processedSheet = this.addCustomSemulaMenjadiFormulas(processedSheet);
-                    
-                    // Update the processed sheet
-                    this.processedWorkbook.Sheets[sheetName] = processedSheet;
-                });
-                
-                this.updateStatus('✅ Semula Menjadi processing complete! Click download button below.', 'success');
-                
-            }, 1000);
-            
-        } catch (error) {
-            this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
-            this.resetUploadArea();
-        }
     }
 
     insertRowsAroundJakarta(worksheet) {
