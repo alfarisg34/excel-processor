@@ -145,7 +145,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps...', 'info');
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top)...', 'info');
 
         try {
             // First, do the normal processFile()
@@ -153,14 +153,14 @@ class ExcelProcessor {
             
             // Wait a bit for the first processing to complete, then do additional steps
             setTimeout(() => {
-                this.updateStatus('🔄 Applying additional Semula Menjadi steps...', 'info');
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top)...', 'info');
                 
                 // Process each worksheet for additional steps
                 this.workbook.SheetNames.forEach(sheetName => {
                     let processedSheet = this.processedWorkbook.Sheets[sheetName];
                     
-                    // Step 1: Add custom formatting or formulas
-                    // processedSheet = this.addCustomSemulaMenjadiFormulas(processedSheet);
+                    // STEP 1: Add 3 rows at the top of the sheet
+                    processedSheet = this.addThreeRowsAtTop(processedSheet);
                     
                     // Update the processed sheet
                     this.processedWorkbook.Sheets[sheetName] = processedSheet;
@@ -174,6 +174,83 @@ class ExcelProcessor {
             this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    // Add this new method to insert 3 rows at the top
+    addThreeRowsAtTop(worksheet) {
+        console.log('Adding 3 rows at the top of the sheet...');
+        
+        // Insert 3 rows at the top (row 0)
+        for (let i = 0; i < 3; i++) {
+            worksheet = this.insertRowAtTop(worksheet);
+        }
+        
+        console.log('Added 3 rows at the top of the sheet');
+        return worksheet;
+    }
+
+    // Helper method to insert a single row at the top
+    insertRowAtTop(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Increase the row range by 1
+        range.e.r += 1;
+        
+        // Shift all existing rows down by 1
+        for (let R = range.e.r; R > 0; --R) {
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const currentCell = XLSX.utils.encode_cell({ r: R, c: C });
+                const sourceCell = XLSX.utils.encode_cell({ r: R - 1, c: C });
+                
+                if (worksheet[sourceCell]) {
+                    worksheet[currentCell] = { ...worksheet[sourceCell] };
+                    
+                    // Update cell references in formulas if they exist
+                    if (worksheet[currentCell].f) {
+                        worksheet[currentCell].f = this.updateFormulaReferences(worksheet[currentCell].f, 1);
+                    }
+                } else {
+                    delete worksheet[currentCell];
+                }
+            }
+        }
+        
+        // Clear the new top row (row 0)
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const newCell = XLSX.utils.encode_cell({ r: 0, c: C });
+            delete worksheet[newCell];
+        }
+        
+        // Update merge ranges if they exist
+        if (worksheet['!merges']) {
+            worksheet['!merges'] = worksheet['!merges'].map(merge => {
+                const newMerge = { ...merge };
+                
+                // Adjust all row indices since we're inserting at the top
+                newMerge.s.r += 1;
+                newMerge.e.r += 1;
+                
+                return newMerge;
+            });
+        }
+        
+        // Update the worksheet range
+        worksheet['!ref'] = XLSX.utils.encode_range(range);
+        
+        return worksheet;
+    }
+
+    // Helper method to update formula references when rows are inserted
+    updateFormulaReferences(formula, rowOffset) {
+        if (!formula) return formula;
+        
+        // Simple regex to match cell references like A1, B2, etc.
+        const cellRefRegex = /([A-Z]+)(\d+)/g;
+        
+        return formula.replace(cellRefRegex, (match, col, row) => {
+            const rowNum = parseInt(row);
+            return `${col}${rowNum + rowOffset}`;
+        });
     }
 
     convertColumnSToNumbers(worksheet) {
