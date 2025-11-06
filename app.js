@@ -126,16 +126,15 @@ class ExcelProcessor {
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
 
-            // Show download button
-            this.downloadBtn.classList.remove('hidden');
-            this.downloadBtn.classList.add('btn-success');
+            // REMOVED: Don't show download button and completion message here
+            // Let the calling function handle the final UI updates
             
-            this.updateStatus('✅ File processed successfully! Click download button below.', 'success');
-            this.dropZone.innerHTML = '<h3>✅ Processing Complete</h3><p>Your file is ready for download</p>';
+            return true; // Return success status
             
         } catch (error) {
             this.updateStatus('❌ Error processing file: ' + error.message, 'error');
             this.resetUploadArea();
+            return false; // Return failure status
         }
     }
 
@@ -148,25 +147,36 @@ class ExcelProcessor {
         this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top)...', 'info');
 
         try {
-            // First, do the normal processFile()
-            this.processFile();
+            // First, do the normal processFile() but don't show completion yet
+            const processSuccess = this.processFile();
+            
+            if (!processSuccess) {
+                throw new Error('Standard processing failed');
+            }
             
             // Wait a bit for the first processing to complete, then do additional steps
             setTimeout(() => {
                 this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top)...', 'info');
                 
-                // Process each worksheet for additional steps
-                this.workbook.SheetNames.forEach(sheetName => {
-                    let processedSheet = this.processedWorkbook.Sheets[sheetName];
+                try {
+                    // Process each worksheet for additional steps
+                    this.workbook.SheetNames.forEach(sheetName => {
+                        let processedSheet = this.processedWorkbook.Sheets[sheetName];
+                        
+                        // STEP 1: Add 3 rows at the top of the sheet
+                        processedSheet = this.addThreeRowsAtTop(processedSheet);
+                        
+                        // Update the processed sheet
+                        this.processedWorkbook.Sheets[sheetName] = processedSheet;
+                    });
                     
-                    // STEP 1: Add 3 rows at the top of the sheet
-                    processedSheet = this.addThreeRowsAtTop(processedSheet);
+                    // NOW show download button and completion message
+                    this.showCompletionUI('Semula Menjadi');
                     
-                    // Update the processed sheet
-                    this.processedWorkbook.Sheets[sheetName] = processedSheet;
-                });
-                
-                this.updateStatus('✅ Semula Menjadi processing complete! Click download button below.', 'success');
+                } catch (error) {
+                    this.updateStatus('❌ Error in Semula Menjadi additional steps: ' + error.message, 'error');
+                    this.resetUploadAreaSemulaMenjadi();
+                }
                 
             }, 1000);
             
@@ -174,6 +184,20 @@ class ExcelProcessor {
             this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    showCompletionUI(processingType = 'Standard') {
+        // Show download button
+        this.downloadBtn.classList.remove('hidden');
+        this.downloadBtn.classList.add('btn-success');
+        
+        // Update status message
+        const typeText = processingType === 'Semula Menjadi' ? 'Semula Menjadi ' : '';
+        this.updateStatus(`✅ ${typeText}File processed successfully! Click download button below.`, 'success');
+        
+        // Update upload area
+        const uploadArea = processingType === 'Semula Menjadi' ? this.dropZoneSemulaMenjadi : this.dropZone;
+        uploadArea.innerHTML = '<h3>✅ Processing Complete</h3><p>Your file is ready for download</p>';
     }
 
     // Add this new method to insert 3 rows at the top
@@ -412,7 +436,12 @@ class ExcelProcessor {
                 this.updateStatus('✅ File loaded! Processing...', 'info');
                 
                 // Automatically start processing
-                setTimeout(() => this.processFile(), 500);
+                setTimeout(() => {
+                    const processSuccess = this.processFile();
+                    if (processSuccess) {
+                        this.showCompletionUI('Standard');
+                    }
+                }, 500);
                 
             } catch (error) {
                 this.updateStatus('❌ Error reading file: ' + error.message, 'error');
