@@ -107,22 +107,22 @@ class ExcelProcessor {
                 // Step 16: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // NEW STEP: Convert column O values to numbers
+                // Step 17: Convert column O values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 14, 'O');
 
-                // NEW STEP: Convert column S values to numbers
+                // Step 18: Convert column S values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 18, 'S');
 
-                // Step 18: Add hierarchical sum formulas in column U
+                // Step 19: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
 
-                // Step 19: Apply number formatting to columns S and U
+                // Step 20: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
 
-                // Step 20: Auto-fit columns A and D-W
+                // Step 21: Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
 
-                // Step 21: Move text from column Y to column W
+                // Step 22: Move text from column Y to column W
                 processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
@@ -146,7 +146,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top and creating headers)...', 'info');
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top, creating headers, and duplicating columns)...', 'info');
 
         try {
             // First, do the normal processFile() but don't show completion yet
@@ -158,7 +158,7 @@ class ExcelProcessor {
             
             // Wait a bit for the first processing to complete, then do additional steps
             setTimeout(() => {
-                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top and creating headers)...', 'info');
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top, creating headers, and duplicating columns)...', 'info');
                 
                 try {
                     // Process each worksheet for additional steps
@@ -170,6 +170,9 @@ class ExcelProcessor {
                         
                         // STEP 2: Create headers in the first 3 rows
                         processedSheet = this.createSemulaHeaders(processedSheet);
+                        
+                        // STEP 3: Duplicate columns A:W to X and beyond
+                        processedSheet = this.duplicateColumnsAToW(processedSheet);
                         
                         // Update the processed sheet
                         this.processedWorkbook.Sheets[sheetName] = processedSheet;
@@ -191,7 +194,114 @@ class ExcelProcessor {
         }
     }
 
-    // NEW METHOD: Create Semula headers in the first 3 rows
+    // NEW METHOD: Duplicate columns A:W to X and beyond
+    duplicateColumnsAToW(worksheet) {
+        console.log('Duplicating columns A:W to X and beyond...');
+        
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const originalColumnCount = 23; // A:W is 23 columns (0-22)
+        
+        // Calculate how many times we can duplicate based on available columns
+        // We'll duplicate once to start with (A:W -> X:AR)
+        const duplicationCount = 1;
+        
+        // Expand the range to accommodate duplicated columns
+        range.e.c += (originalColumnCount * duplicationCount);
+        
+        // Create a copy of the original worksheet data
+        const originalData = {};
+        for (const cellAddress in worksheet) {
+            if (cellAddress[0] === '!') continue; // Skip special properties
+            originalData[cellAddress] = { ...worksheet[cellAddress] };
+        }
+        
+        // Duplicate the columns
+        for (let dup = 0; dup < duplicationCount; dup++) {
+            const columnOffset = (dup + 1) * originalColumnCount;
+            
+            for (const cellAddress in originalData) {
+                const cellRef = XLSX.utils.decode_cell(cellAddress);
+                
+                // Only process columns A:W (0-22)
+                if (cellRef.c >= 0 && cellRef.c < originalColumnCount) {
+                    const newCol = cellRef.c + columnOffset;
+                    const newCellAddress = XLSX.utils.encode_cell({ 
+                        r: cellRef.r, 
+                        c: newCol 
+                    });
+                    
+                    // Copy the cell data
+                    worksheet[newCellAddress] = { ...originalData[cellAddress] };
+                    
+                    // Update formula references if it's a formula
+                    if (worksheet[newCellAddress].f) {
+                        worksheet[newCellAddress].f = this.updateFormulaReferencesForDuplication(
+                            worksheet[newCellAddress].f, 
+                            columnOffset
+                        );
+                    }
+                }
+            }
+        }
+        
+        // Update merge ranges for duplicated columns
+        if (worksheet['!merges']) {
+            const originalMerges = [...worksheet['!merges']];
+            
+            for (let dup = 0; dup < duplicationCount; dup++) {
+                const columnOffset = (dup + 1) * originalColumnCount;
+                
+                originalMerges.forEach(merge => {
+                    // Only duplicate merges that are within A:W
+                    if (merge.s.c >= 0 && merge.s.c < originalColumnCount && 
+                        merge.e.c >= 0 && merge.e.c < originalColumnCount) {
+                        
+                        const newMerge = {
+                            s: { 
+                                r: merge.s.r, 
+                                c: merge.s.c + columnOffset 
+                            },
+                            e: { 
+                                r: merge.e.r, 
+                                c: merge.e.c + columnOffset 
+                            }
+                        };
+                        
+                        worksheet['!merges'].push(newMerge);
+                    }
+                });
+            }
+        }
+
+        this.setCellValue(worksheet, 0, 23, "MENJADI"); // X1
+        
+        // Update the worksheet range
+        worksheet['!ref'] = XLSX.utils.encode_range(range);
+        
+        console.log(`Duplicated columns A:W ${duplicationCount} time(s) starting from column X`);
+        return worksheet;
+    }
+
+    // Helper method to update formula references for duplication
+    updateFormulaReferencesForDuplication(formula, columnOffset) {
+        if (!formula) return formula;
+        
+        // Regex to match cell references like A1, B2, etc.
+        const cellRefRegex = /([A-Z]+)(\d+)/g;
+        
+        return formula.replace(cellRefRegex, (match, col, row) => {
+            // Convert column letter to index
+            const colIndex = XLSX.utils.decode_col(col);
+            const newColIndex = colIndex + columnOffset;
+            
+            // Convert back to column letter
+            const newCol = XLSX.utils.encode_col(newColIndex);
+            
+            return `${newCol}${row}`;
+        });
+    }
+
+    // Create Semula headers in the first 3 rows
     createSemulaHeaders(worksheet) {
         console.log('Creating Semula headers...');
         
