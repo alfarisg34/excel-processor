@@ -69,58 +69,58 @@ class ExcelProcessor {
                 // Step 3: Clear blank cells to fix text flow
                 processedSheet = this.clearBlankCells(processedSheet);
 
-                // NEW STEP: Insert rows above and below cells containing "Jakarta"
+                // Step 4: Insert rows above and below cells containing "Jakarta"
                 processedSheet = this.insertRowsAroundJakarta(processedSheet);
 
-                // Step 4: Delete columns B and C (index 1 and 2)
+                // Step 5: Delete columns B and C (index 1 and 2)
                 processedSheet = this.deleteColumns(processedSheet, [1, 2]);
                 
-                // Step 5: Add 3 blank columns after column E (index 4)
+                // Step 6: Add 3 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 3);
                 
-                // Step 6: Perform text-to-columns on column E (index 4) using space delimiter
+                // Step 7: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, ' ');
 
-                // Step 7: Add 1 blank columns after column E (index 4)
+                // Step 8: Add 1 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 1);
                 
-                // Step 8: Perform text-to-columns on column E (index 4) using space delimiter
+                // Step 9: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, '.');
 
-                // Step 9: Delete column F (index 5)
+                // Step 10: Delete column F (index 5)
                 processedSheet = this.deleteColumns(processedSheet, [5]);
 
-                // Step 10: Perform text-to-columns on column C (index 2) using [ delimiter
+                // Step 11: Perform text-to-columns on column C (index 2) using [ delimiter
                 processedSheet = this.textToColumns(processedSheet, 2, '[');
 
-                // Step 11: Add 10 blank columns after column D (index 3)
+                // Step 12: Add 10 blank columns after column D (index 3)
                 processedSheet = this.addBlankColumns(processedSheet, 3, 10);
 
-                // Step 12: Perform text-to-columns on column D (index 3) using ] delimiter
+                // Step 13: Perform text-to-columns on column D (index 3) using ] delimiter
                 processedSheet = this.textToColumns(processedSheet, 3, ']');
 
-                // Step 13: Perform text-to-columns on column D (index 3) using space delimiter
+                // Step 14: Perform text-to-columns on column D (index 3) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 3, ' ');
 
-                // Step 14: Add multiplication formulas in column O (index 14)
+                // Step 15: Add multiplication formulas in column O (index 14)
                 processedSheet = this.addMultiplicationFormulas(processedSheet);
 
-                // Step 15: Add multiplication formulas in column U (index 20) - O * S
+                // Step 16: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // NEW STEP: Convert column S values to numbers
+                // Step 17: Convert column S values to numbers
                 processedSheet = this.convertColumnSToNumbers(processedSheet);
 
-                // Step 16: Add hierarchical sum formulas in column U
+                // Step 18: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
 
-                // Step 17: Apply number formatting to columns S and U
+                // Step 19: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
 
-                // Step 18: Auto-fit columns A and D-W
+                // Step 20: Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
 
-                // Step 19: Move text from column Y to column W
+                // Step 21: Move text from column Y to column W
                 processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
@@ -163,7 +163,7 @@ class ExcelProcessor {
                     this.workbook.SheetNames.forEach(sheetName => {
                         let processedSheet = this.processedWorkbook.Sheets[sheetName];
                         
-                        // STEP 1: Add 3 rows at the top of the sheet
+                        // Step 1: Add 3 rows at the top of the sheet
                         processedSheet = this.addThreeRowsAtTop(processedSheet);
                         
                         // Update the processed sheet
@@ -1046,27 +1046,29 @@ class ExcelProcessor {
     autoFitColumns(worksheet) {
         // Set specific widths for columns A and D-W
         const columnWidths = {
-            0: 12,  // A - Wider for codes and numbers
-            3: 4.5,  // D
-            4: 4.5,  // E  
-            5: 1.17,  // F
-            6: 4.5,  // G
-            7: 4.5,  // H
-            8: 1.17,  // I
-            9: 4.5,  // J
-            10: 4.5, // K
-            11: 1.17, // L
-            12: 4.5, // M
-            13: 4.5, // N
-            14: 5.2, // O - Wider for formulas
-            15: 11.2, // P
-            16: 12, // Q
-            17: 12, // R
-            18: 11.75, // S - Wider for formatted numbers
-            19: 12, // T
-            20: 15, // U - Wider for formulas and formatted numbers
-            21: 9.1, // V
-            22: 3.5  // W
+            0: 6.75,  // A - Wider for codes and numbers
+            1: 1,  // B
+            2: 30,  // C
+            3: 1.83,  // D
+            4: 2.42,  // E  
+            5: 0.74,  // F
+            6: 1.25,  // G
+            7: 2.67,  // H
+            8: 0.74,  // I
+            9: 1.25,  // J
+            10: 2.25, // K
+            11: 0.74, // L
+            12: 0.74, // M
+            13: 0.74, // N
+            14: 3.08, // O - Wider for formulas
+            15: 6.5, // P
+            16: 5, // Q
+            17: 5, // R
+            18: 7.67, // S - Wider for formatted numbers
+            19: 5, // T
+            20: 9, // U - Wider for formulas and formatted numbers
+            21: 0.84, // V
+            22: 2.17  // W
         };
         
         if (!worksheet['!cols']) {
