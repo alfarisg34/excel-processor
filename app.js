@@ -37,8 +37,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
-
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, adding multiplication formulas (O and U), converting columns O and S to numbers, hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
         try {
             // Create a copy of the workbook
             this.processedWorkbook = XLSX.utils.book_new();
@@ -108,8 +107,11 @@ class ExcelProcessor {
                 // Step 16: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // Step 17: Convert column S values to numbers
-                processedSheet = this.convertColumnSToNumbers(processedSheet);
+                // NEW STEP: Convert column O values to numbers
+                processedSheet = this.convertColumnToNumbers(processedSheet, 14, 'O');
+
+                // NEW STEP: Convert column S values to numbers
+                processedSheet = this.convertColumnToNumbers(processedSheet, 18, 'S');
 
                 // Step 18: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
@@ -277,14 +279,12 @@ class ExcelProcessor {
         });
     }
 
-    convertColumnSToNumbers(worksheet) {
+    convertColumnToNumbers(worksheet, columnIndex, columnName) {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
-        
-        // Column S is index 18 (0-based)
-        const columnSIndex = 18;
+        let convertedCount = 0;
         
         for (let R = range.s.r; R <= range.e.r; ++R) {
-            const cellAddress = XLSX.utils.encode_cell({ r: R, c: columnSIndex });
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: columnIndex });
             
             if (worksheet[cellAddress]) {
                 const cell = worksheet[cellAddress];
@@ -311,8 +311,9 @@ class ExcelProcessor {
                     if (!isNaN(numericValue) && isFinite(numericValue)) {
                         worksheet[cellAddress].v = numericValue;
                         worksheet[cellAddress].t = 'n'; // Set type to number
+                        convertedCount++;
                         
-                        console.log(`Converted S${R + 1}: "${originalValue}" -> ${numericValue}`);
+                        console.log(`Converted ${columnName}${R + 1}: "${originalValue}" -> ${numericValue}`);
                     } else if (cleanValue === '' || originalValue.trim() === '') {
                         // If empty string, set to empty
                         worksheet[cellAddress].v = '';
@@ -326,7 +327,7 @@ class ExcelProcessor {
             }
         }
         
-        console.log('Converted column S values to numbers');
+        console.log(`Converted ${convertedCount} values in column ${columnName} to numbers`);
         return worksheet;
     }
 
@@ -1046,17 +1047,17 @@ class ExcelProcessor {
     autoFitColumns(worksheet) {
         // Set specific widths for columns A and D-W
         const columnWidths = {
-            0: 6.75,  // A - Wider for codes and numbers
+            0: 7,  // A - Wider for codes and numbers
             1: 1,  // B
-            2: 30,  // C
-            3: 1.83,  // D
-            4: 2.42,  // E  
-            5: 0.74,  // F
+            2: 34,  // C
+            3: 2,  // D
+            4: 2.5,  // E  
+            5: 1,  // F
             6: 1.25,  // G
             7: 2.67,  // H
-            8: 0.74,  // I
+            8: 1,  // I
             9: 1.25,  // J
-            10: 2.25, // K
+            10: 2.5, // K
             11: 0.74, // L
             12: 0.74, // M
             13: 0.74, // N
