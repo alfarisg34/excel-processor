@@ -146,7 +146,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top)...', 'info');
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top and creating headers)...', 'info');
 
         try {
             // First, do the normal processFile() but don't show completion yet
@@ -158,15 +158,18 @@ class ExcelProcessor {
             
             // Wait a bit for the first processing to complete, then do additional steps
             setTimeout(() => {
-                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top)...', 'info');
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top and creating headers)...', 'info');
                 
                 try {
                     // Process each worksheet for additional steps
                     this.workbook.SheetNames.forEach(sheetName => {
                         let processedSheet = this.processedWorkbook.Sheets[sheetName];
                         
-                        // Step 1: Add 3 rows at the top of the sheet
+                        // STEP 1: Add 3 rows at the top of the sheet
                         processedSheet = this.addThreeRowsAtTop(processedSheet);
+                        
+                        // STEP 2: Create headers in the first 3 rows
+                        processedSheet = this.createSemulaHeaders(processedSheet);
                         
                         // Update the processed sheet
                         this.processedWorkbook.Sheets[sheetName] = processedSheet;
@@ -186,6 +189,76 @@ class ExcelProcessor {
             this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
             this.resetUploadArea();
         }
+    }
+
+    // NEW METHOD: Create Semula headers in the first 3 rows
+    createSemulaHeaders(worksheet) {
+        console.log('Creating Semula headers...');
+        
+        // Ensure we have merge ranges array
+        if (!worksheet['!merges']) {
+            worksheet['!merges'] = [];
+        }
+        
+        // Row 1: A1:W1 - "SEMULA"
+        this.setCellValue(worksheet, 0, 0, "SEMULA"); // A1
+        worksheet['!merges'].push({
+            s: { r: 0, c: 0 },  // A1
+            e: { r: 0, c: 22 }   // W1 (0-based: W is index 22)
+        });
+        
+        // Row 2 headers
+        this.setCellValue(worksheet, 1, 0, "KODE"); // A2
+        this.setCellValue(worksheet, 1, 1, "Program/ Aktivitas/ KRO/ RO/ Komponen/ SubKomponen/ Detil"); // B2
+        worksheet['!merges'].push({
+            s: { r: 1, c: 1 },  // B2
+            e: { r: 1, c: 13 }   // N2 (0-based: N is index 13)
+        });
+        this.setCellValue(worksheet, 1, 14, "Volume"); // O2
+        this.setCellValue(worksheet, 1, 15, "Satuan Ukur"); // P2
+        worksheet['!merges'].push({
+            s: { r: 1, c: 15 }, // P2
+            e: { r: 1, c: 17 }   // R2 (0-based: R is index 17)
+        });
+        this.setCellValue(worksheet, 1, 18, "Biaya Satuan Ukur"); // S2
+        worksheet['!merges'].push({
+            s: { r: 1, c: 18 }, // S2
+            e: { r: 1, c: 19 }   // T2 (0-based: T is index 19)
+        });
+        this.setCellValue(worksheet, 1, 20, "Jumlah"); // U2
+        
+        // Row 3 headers
+        this.setCellValue(worksheet, 2, 0, "1"); // A3
+        this.setCellValue(worksheet, 2, 1, "2"); // B3
+        worksheet['!merges'].push({
+            s: { r: 2, c: 1 },  // B3
+            e: { r: 2, c: 13 }   // N3 (0-based: N is index 13)
+        });
+        this.setCellValue(worksheet, 2, 14, "3"); // O3
+        this.setCellValue(worksheet, 2, 15, "4"); // P3
+        worksheet['!merges'].push({
+            s: { r: 2, c: 15 }, // P3
+            e: { r: 2, c: 17 }   // R3 (0-based: R is index 17)
+        });
+        this.setCellValue(worksheet, 2, 18, "5"); // S3
+        worksheet['!merges'].push({
+            s: { r: 2, c: 18 }, // S3
+            e: { r: 2, c: 19 }   // T3 (0-based: T is index 19)
+        });
+        this.setCellValue(worksheet, 2, 20, "6 = (3x5)"); // U3
+        
+        console.log('Created Semula headers with merges');
+        return worksheet;
+    }
+
+    // Helper method to set cell value
+    setCellValue(worksheet, row, col, value) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+        if (!worksheet[cellAddress]) {
+            worksheet[cellAddress] = {};
+        }
+        worksheet[cellAddress].v = value;
+        worksheet[cellAddress].t = 's'; // Set as string type
     }
 
     showCompletionUI(processingType = 'Standard') {
@@ -1068,8 +1141,8 @@ class ExcelProcessor {
             18: 7.67, // S - Wider for formatted numbers
             19: 5, // T
             20: 9, // U - Wider for formulas and formatted numbers
-            21: 0.84, // V
-            22: 2.17  // W
+            21: 1, // V
+            22: 2.3  // W
         };
         
         if (!worksheet['!cols']) {
