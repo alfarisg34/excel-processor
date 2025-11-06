@@ -146,7 +146,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top, creating headers, and duplicating columns)...', 'info');
+        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top, creating headers, duplicating columns, and adding SELISIH column)...', 'info');
 
         try {
             // First, do the normal processFile() but don't show completion yet
@@ -158,7 +158,7 @@ class ExcelProcessor {
             
             // Wait a bit for the first processing to complete, then do additional steps
             setTimeout(() => {
-                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top, creating headers, and duplicating columns)...', 'info');
+                this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top, creating headers, duplicating columns, and adding SELISIH column)...', 'info');
                 
                 try {
                     // Process each worksheet for additional steps
@@ -173,6 +173,12 @@ class ExcelProcessor {
                         
                         // STEP 3: Duplicate columns A:W to X and beyond
                         processedSheet = this.duplicateColumnsAToW(processedSheet);
+
+                        // STEP 4: Add SELISIH column with formula
+                        processedSheet = this.addSelisihColumn(processedSheet);
+
+                        // STEP 5: Auto-fit columns X-AT
+                        processedSheet = this.autoFitColumns(processedSheet);
                         
                         // Update the processed sheet
                         this.processedWorkbook.Sheets[sheetName] = processedSheet;
@@ -194,7 +200,69 @@ class ExcelProcessor {
         }
     }
 
-    // NEW METHOD: Duplicate columns A:W to X and beyond
+    addSelisihColumn(worksheet) {
+        console.log('Adding SELISIH column with formula...');
+        
+        // Ensure we have merge ranges array
+        if (!worksheet['!merges']) {
+            worksheet['!merges'] = [];
+        }
+        
+        // AU is column index 46 (0-based)
+        const selisihColumnIndex = 46;
+        
+        // Merge AU1:AU3 and add "SELISIH" text
+        this.setCellValue(worksheet, 0, selisihColumnIndex, "SELISIH");
+        worksheet['!merges'].push({
+            s: { r: 0, c: selisihColumnIndex },  // AU1
+            e: { r: 2, c: selisihColumnIndex }    // AU3
+        });
+        
+        // Apply formula to column AU starting from row 4 (index 3)
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        for (let R = 3; R <= range.e.r; ++R) {
+            const cellAU = XLSX.utils.encode_cell({ r: R, c: selisihColumnIndex });
+            const cellAR = XLSX.utils.encode_cell({ r: R, c: 43 }); // AR is index 43
+            const cellU = XLSX.utils.encode_cell({ r: R, c: 20 });  // U is index 20
+            
+            // Check if both AR and U columns are not blank
+            const hasAR = worksheet[cellAR] && worksheet[cellAR].v !== '' && worksheet[cellAR].v !== null && worksheet[cellAR].v !== undefined;
+            const hasU = worksheet[cellU] && worksheet[cellU].v !== '' && worksheet[cellU].v !== null && worksheet[cellU].v !== undefined;
+            
+            if (hasAR && hasU) {
+                // Apply formula: AU = AR - U
+                const formula = `=${cellAR}-${cellU}`;
+                
+                if (!worksheet[cellAU]) {
+                    worksheet[cellAU] = {};
+                }
+                worksheet[cellAU].f = formula;
+                worksheet[cellAU].t = 'n'; // Set as numeric type
+                
+                console.log(`Applied formula to ${cellAU}: ${formula}`);
+            } else if (hasAR || hasU) {
+                // If only one column has data, set to empty but still apply border
+                if (!worksheet[cellAU]) {
+                    worksheet[cellAU] = {};
+                }
+                worksheet[cellAU].v = '';
+                worksheet[cellAU].t = 's';
+            }
+            // If both are blank, leave the cell empty (no formula)
+        }
+        
+        // Update the worksheet range to include the new column if needed
+        if (selisihColumnIndex > range.e.c) {
+            range.e.c = selisihColumnIndex;
+            worksheet['!ref'] = XLSX.utils.encode_range(range);
+        }
+        
+        console.log('Added SELISIH column with formulas');
+        return worksheet;
+    }
+
+    // Duplicate columns A:W to X and beyond
     duplicateColumnsAToW(worksheet) {
         console.log('Duplicating columns A:W to X and beyond...');
         
@@ -1228,9 +1296,9 @@ class ExcelProcessor {
     }
 
     autoFitColumns(worksheet) {
-        // Set specific widths for columns A and D-W
+        // Set specific widths for columns A-AT
         const columnWidths = {
-            0: 7,  // A - Wider for codes and numbers
+            0: 7,  // A
             1: 1,  // B
             2: 34,  // C
             3: 2,  // D
@@ -1244,15 +1312,38 @@ class ExcelProcessor {
             11: 0.74, // L
             12: 0.74, // M
             13: 0.74, // N
-            14: 3.08, // O - Wider for formulas
+            14: 3.08, // O
             15: 6.5, // P
             16: 5, // Q
             17: 5, // R
-            18: 7.67, // S - Wider for formatted numbers
+            18: 7.67, // S
             19: 5, // T
-            20: 9, // U - Wider for formulas and formatted numbers
+            20: 9, // U
             21: 1, // V
-            22: 2.3  // W
+            22: 2.3,  // W
+            23: 7,  // X
+            24: 1,  // Y
+            25: 34,  // Z
+            26: 2,  // AA
+            27: 2.5,  // AB  
+            28: 1,  // AC
+            29: 1.25,  // AD
+            30: 2.67,  // AE
+            31: 1,  // AF
+            32: 1.25,  // AG
+            33: 2.5, // AH
+            34: 0.74, // AI
+            35: 0.74, // AJ
+            36: 0.74, // AK
+            37: 3.08, // AL
+            38: 6.5, // AM
+            39: 5, // AN
+            40: 5, // AO
+            41: 7.67, // AP
+            42: 5, // AQ
+            43: 9, // AR
+            44: 1, // AS
+            45: 2.3  // AT
         };
         
         if (!worksheet['!cols']) {
