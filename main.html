@@ -153,6 +153,20 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Copyright Footer -->
+        <div class="copyright-footer">
+            <p>
+                <i class="fa-regular fa-copyright"></i>
+                <span id="current-year">2024</span> All Rights Reserved.
+            </p>
+            <p>
+                Created by <span class="copyright-name">Alfari Sidnan Ghilmana</span>
+            </p>
+            <p>
+                <span class="copyright-id">NIP. 20000403 202505 1 004</span>
+            </p>
+        </div>
     </div>
 
     <!-- Back to Top Button -->
@@ -161,7 +175,7 @@
     </button>
 
     <!-- Include SheetJS from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
         // Sidebar and Navigation functionality
         class AppNavigation {
@@ -403,6 +417,10 @@
             window.appNavigation = new AppNavigation();
             window.colorNotesManager = new ColorNotesManager();
             window.backToTopManager = new BackToTopManager();
+            
+            // Set current year in copyright
+            const currentYear = new Date().getFullYear();
+            document.getElementById('current-year').textContent = currentYear;
         });
 
         // Handle browser back/forward buttons
