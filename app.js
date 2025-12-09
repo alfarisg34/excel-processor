@@ -201,7 +201,7 @@ class ExcelProcessor {
     }
 
     addSelisihColumn(worksheet) {
-        console.log('Adding SELISIH column with formula...');
+        // console.log('Adding SELISIH column with formula...');
         
         // Ensure we have merge ranges array
         if (!worksheet['!merges']) {
@@ -240,7 +240,7 @@ class ExcelProcessor {
                 worksheet[cellAU].f = formula;
                 worksheet[cellAU].t = 'n'; // Set as numeric type
                 
-                console.log(`Applied formula to ${cellAU}: ${formula}`);
+                // console.log(`Applied formula to ${cellAU}: ${formula}`);
             } else if (hasAR || hasU) {
                 // If only one column has data, set to empty but still apply border
                 if (!worksheet[cellAU]) {
@@ -258,13 +258,13 @@ class ExcelProcessor {
             worksheet['!ref'] = XLSX.utils.encode_range(range);
         }
         
-        console.log('Added SELISIH column with formulas');
+        // console.log('Added SELISIH column with formulas');
         return worksheet;
     }
 
     // Duplicate columns A:W to X and beyond
     duplicateColumnsAToW(worksheet) {
-        console.log('Duplicating columns A:W to X and beyond...');
+        // console.log('Duplicating columns A:W to X and beyond...');
         
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const originalColumnCount = 23; // A:W is 23 columns (0-22)
@@ -346,7 +346,7 @@ class ExcelProcessor {
         // Update the worksheet range
         worksheet['!ref'] = XLSX.utils.encode_range(range);
         
-        console.log(`Duplicated columns A:W ${duplicationCount} time(s) starting from column X`);
+        // console.log(`Duplicated columns A:W ${duplicationCount} time(s) starting from column X`);
         return worksheet;
     }
 
@@ -371,7 +371,7 @@ class ExcelProcessor {
 
     // Create Semula headers in the first 3 rows
     createSemulaHeaders(worksheet) {
-        console.log('Creating Semula headers...');
+        // console.log('Creating Semula headers...');
         
         // Ensure we have merge ranges array
         if (!worksheet['!merges']) {
@@ -425,7 +425,7 @@ class ExcelProcessor {
         });
         this.setCellValue(worksheet, 2, 20, "6 = (3x5)"); // U3
         
-        console.log('Created Semula headers with merges');
+        // console.log('Created Semula headers with merges');
         return worksheet;
     }
 
@@ -455,14 +455,14 @@ class ExcelProcessor {
 
     // Add this new method to insert 3 rows at the top
     addThreeRowsAtTop(worksheet) {
-        console.log('Adding 3 rows at the top of the sheet...');
+        // console.log('Adding 3 rows at the top of the sheet...');
         
         // Insert 3 rows at the top (row 0)
         for (let i = 0; i < 3; i++) {
             worksheet = this.insertRowAtTop(worksheet);
         }
         
-        console.log('Added 3 rows at the top of the sheet');
+        // console.log('Added 3 rows at the top of the sheet');
         return worksheet;
     }
 
@@ -564,7 +564,7 @@ class ExcelProcessor {
                         worksheet[cellAddress].t = 'n'; // Set type to number
                         convertedCount++;
                         
-                        console.log(`Converted ${columnName}${R + 1}: "${originalValue}" -> ${numericValue}`);
+                        // console.log(`Converted ${columnName}${R + 1}: "${originalValue}" -> ${numericValue}`);
                     } else if (cleanValue === '' || originalValue.trim() === '') {
                         // If empty string, set to empty
                         worksheet[cellAddress].v = '';
@@ -578,7 +578,7 @@ class ExcelProcessor {
             }
         }
         
-        console.log(`Converted ${convertedCount} values in column ${columnName} to numbers`);
+        // console.log(`Converted ${convertedCount} values in column ${columnName} to numbers`);
         return worksheet;
     }
 
@@ -720,7 +720,7 @@ class ExcelProcessor {
             const cellO = XLSX.utils.encode_cell({ r: R, c: targetColumn }); // Kolom O
             
             // Periksa apakah kolom D tidak kosong
-            if (worksheet[cellD] && worksheet[cellD].v && String(worksheet[cellD].v).trim() !== '') {
+            if (worksheet[cellD] && worksheet[cellD].v && String(worksheet[cellD].v).trim() !== '' && String(worksheet[cellD].v).trim() !== '0') {
                 
                 // Tentukan berapa multiplier yang ada
                 const multiplierCount = this.countMultipliers(worksheet, R);
@@ -776,6 +776,12 @@ class ExcelProcessor {
         if (worksheet[cellJ] && worksheet[cellJ].v && String(worksheet[cellJ].v).trim() !== '') {
             multiplierCount++;
         }
+
+        // Cek kolom M (index 12) - multiplier keempat  
+        const cellM = XLSX.utils.encode_cell({ r: rowIndex, c: 12 });
+        if (worksheet[cellM] && worksheet[cellM].v && String(worksheet[cellM].v).trim() !== '') {
+            multiplierCount++;
+        }
         
         return multiplierCount;
     }
@@ -785,7 +791,7 @@ class ExcelProcessor {
         let formula = cellD;
         
         // Multiplier columns: D(3), G(6), J(9), M(12), P(15), etc.
-        const multiplierColumns = [3, 6, 9]; // Tambahkan lebih banyak jika diperlukan
+        const multiplierColumns = [6, 9, 12]; // Tambahkan lebih banyak jika diperlukan
         
         for (let i = 0; i < Math.min(multiplierCount, multiplierColumns.length); i++) {
             const multiplierCell = XLSX.utils.encode_cell({ r: rowIndex, c: multiplierColumns[i] });
@@ -840,12 +846,12 @@ class ExcelProcessor {
             
             let formula = null;
             
-            console.log(`Row ${R}: A="${valueA}", B="${valueB}"`); // Debug log
+            // console.log(`Row ${R}: A="${valueA}", B="${valueB}"`); // Debug log
             
             // Rule 1: Column B has ">" - CHECK THIS FIRST
             if (valueB.includes('>')) {
                 formula = this.createSumForGreaterThan(worksheet, R);
-                console.log(`Rule 1 applied to row ${R}: ${formula}`); // Debug log
+                // console.log(`Rule 1 applied to row ${R}: ${formula}`); // Debug log
             }
             // Rule 2: Column A has 6-digit number
             else if (/^\d{6}$/.test(valueA)) {
@@ -883,11 +889,11 @@ class ExcelProcessor {
                 worksheet[cellU].f = formula;
                 worksheet[cellU].t = 'n';
                 formulasAdded.push({ row: R, formula: formula });
-                console.log(`Formula added to U${R+1}: ${formula}`); // Debug log
+                // console.log(`Formula added to U${R+1}: ${formula}`); // Debug log
             }
         }
         
-        console.log(`Added ${formulasAdded.length} hierarchical sum formulas`);
+        // console.log(`Added ${formulasAdded.length} hierarchical sum formulas`);
         return worksheet;
     }
 
@@ -896,7 +902,7 @@ class ExcelProcessor {
         const range = XLSX.utils.decode_range(worksheet['!ref']);
         const sumCells = [];
         
-        console.log(`Checking Rule 1 for row ${startRow}`); // Debug log
+        // console.log(`Checking Rule 1 for row ${startRow}`); // Debug log
         
         for (let R = startRow + 1; R <= range.e.r; ++R) {
             const cellB = XLSX.utils.encode_cell({ r: R, c: 1 });
@@ -904,19 +910,19 @@ class ExcelProcessor {
             
             const valueB = worksheet[cellB] ? String(worksheet[cellB].v).trim() : '';
             
-            console.log(`  Row ${R}: B="${valueB}"`); // Debug log
+            // console.log(`  Row ${R}: B="${valueB}"`); // Debug log
             
             if (valueB === '-') {
                 sumCells.push(cellU);
-                console.log(`    Added ${cellU} to sum`); // Debug log
+                // console.log(`    Added ${cellU} to sum`); // Debug log
             } else {
-                console.log(`    Stopping at row ${R} - value is "${valueB}"`); // Debug log
+                // console.log(`    Stopping at row ${R} - value is "${valueB}"`); // Debug log
                 break; // Stop when we find a non-dash in column B
             }
         }
         
         const formula = sumCells.length > 0 ? `=SUM(${sumCells.join(',')})` : null;
-        console.log(`Rule 1 result: ${formula}`); // Debug log
+        // console.log(`Rule 1 result: ${formula}`); // Debug log
         return formula;
     }
 
@@ -1108,11 +1114,11 @@ class ExcelProcessor {
         // Sort in descending order to maintain correct indices when inserting
         rowsToInsert.sort((a, b) => b - a);
         
-        console.log(`Found ${rowsToInsert.length} rows containing "Jakarta"`);
+        // console.log(`Found ${rowsToInsert.length} rows containing "Jakarta"`);
         
         // Insert rows above and below each Jakarta row
         rowsToInsert.forEach(rowIndex => {
-            console.log(`Inserting rows around row ${rowIndex + 1}`);
+            // console.log(`Inserting rows around row ${rowIndex + 1}`);
             
             // Insert row BELOW first (so it doesn't affect the row indices for ABOVE insertion)
             this.insertRow(worksheet, rowIndex + 1); // Insert below current row
@@ -1124,7 +1130,7 @@ class ExcelProcessor {
         // Update the worksheet range after all insertions
         this.updateWorksheetRange(worksheet);
         
-        console.log(`Inserted ${rowsToInsert.length * 2} rows around Jakarta cells`);
+        // console.log(`Inserted ${rowsToInsert.length * 2} rows around Jakarta cells`);
         return worksheet;
     }
 
@@ -1210,7 +1216,7 @@ class ExcelProcessor {
             }
         }
         
-        console.log('Moved text from column Y to column W');
+        // console.log('Moved text from column Y to column W');
         return worksheet;
     }
 
@@ -1264,7 +1270,7 @@ class ExcelProcessor {
         // Recalculate the range after cleaning
         this.updateWorksheetRange(worksheet);
         
-        console.log('Cleared blank cells and fixed text flow');
+        // console.log('Cleared blank cells and fixed text flow');
         return worksheet;
     }
 
@@ -1360,7 +1366,7 @@ class ExcelProcessor {
             };
         });
         
-        console.log('Applied fixed column widths to A and D-W');
+        // console.log('Applied fixed column widths to A and D-W');
         return worksheet;
     }
 
@@ -1572,7 +1578,7 @@ class ExcelProcessor {
     updateStatus(message, type) {
         this.status.textContent = message;
         this.status.className = `status ${type}`;
-        console.log(`[${type}] ${message}`);
+        // console.log(`[${type}] ${message}`);
     }
 }
 
