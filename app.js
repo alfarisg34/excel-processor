@@ -101,28 +101,31 @@ class ExcelProcessor {
                 // Step 14: Perform text-to-columns on column D (index 3) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 3, ' ');
 
-                // Step 15: Add multiplication formulas in column O (index 14)
+                // Step 15: Clear columns D-N if column D has value 0
+                processedSheet = this.clearColumnsIfColumnDIsZero(processedSheet);
+
+                // Step 16: Add multiplication formulas in column O (index 14)
                 processedSheet = this.addMultiplicationFormulas(processedSheet);
 
-                // Step 16: Add multiplication formulas in column U (index 20) - O * S
+                // Step 17: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // Step 17: Convert column O values to numbers
+                // Step 18: Convert column O values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 14, 'O');
 
-                // Step 18: Convert column S values to numbers
+                // Step 19: Convert column S values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 18, 'S');
 
-                // Step 19: Add hierarchical sum formulas in column U
+                // Step 20: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
 
-                // Step 20: Apply number formatting to columns S and U
+                // Step 21: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
 
-                // Step 21: Auto-fit columns A and D-W
+                // Step 22: Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
 
-                // Step 22: Move text from column Y to column W
+                // Step 23: Move text from column Y to column W
                 processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
@@ -146,7 +149,7 @@ class ExcelProcessor {
             return;
         }
 
-        this.updateStatus('🔄 Processing file with Semula Menjadi: First processing file, then applying additional steps (adding 3 rows at top, creating headers, duplicating columns, and adding SELISIH column)...', 'info');
+        this.updateStatus('🔄 Processing file: Unmerging cells, unwrapping text, clearing blank cells, inserting rows around Jakarta, deleting columns B & C, adding blank columns, text-to-columns, clearing columns D-N if D is zero, adding multiplication formulas (O and U), converting columns O and S to numbers, hierarchical sum formulas, applying number formatting, auto-fitting columns, and moving column Y to W...', 'info');
 
         try {
             // First, do the normal processFile() but don't show completion yet
@@ -707,6 +710,43 @@ class ExcelProcessor {
         };
 
         reader.readAsArrayBuffer(file);
+    }
+
+    // New method: Clear columns D-N if column D has value 0
+    clearColumnsIfColumnDIsZero(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const cellD = XLSX.utils.encode_cell({ r: R, c: 3 }); // Column D (index 3)
+            
+            if (worksheet[cellD] && worksheet[cellD].v !== undefined && worksheet[cellD].v !== null) {
+                const value = worksheet[cellD].v;
+                
+                // Check if value is 0 (as number) or "0" (as string)
+                if (value === 0 || value === '0' || String(value).trim() === '0') {
+                    // Clear columns D to N (indices 3 to 13)
+                    for (let C = 3; C <= 13; ++C) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                        
+                        // Set cell to empty string with string type
+                        if (!worksheet[cellAddress]) {
+                            worksheet[cellAddress] = {};
+                        }
+                        worksheet[cellAddress].v = '';
+                        worksheet[cellAddress].t = 's'; // Force string type
+                        
+                        // Remove any formula if present
+                        if (worksheet[cellAddress].f) {
+                            delete worksheet[cellAddress].f;
+                        }
+                    }
+                    
+                    // console.log(`Cleared columns D-N for row ${R + 1} because column D had value: ${value}`);
+                }
+            }
+        }
+        
+        return worksheet;
     }
     
     addMultiplicationFormulas(worksheet) {
