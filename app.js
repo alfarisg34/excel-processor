@@ -73,16 +73,16 @@ class ExcelProcessor {
 
                 // Step 5: Delete columns B and C (index 1 and 2)
                 processedSheet = this.deleteColumns(processedSheet, [1, 2]);
-                
+
                 // Step 6: Add 3 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 3);
-                
+
                 // Step 7: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, ' ');
 
                 // Step 8: Add 1 blank columns after column E (index 4)
                 processedSheet = this.addBlankColumns(processedSheet, 4, 1);
-                
+
                 // Step 9: Perform text-to-columns on column E (index 4) using space delimiter
                 processedSheet = this.textToColumns(processedSheet, 4, '.');
 
@@ -104,36 +104,39 @@ class ExcelProcessor {
                 // Step 15: Clear columns D-N if column D has value 0
                 processedSheet = this.clearColumnsIfColumnDIsZero(processedSheet);
 
-                // Step 16: Add multiplication formulas in column O (index 14)
+                // STEP 16: Check column V and move values > 1000 to column U
+                processedSheet = this.moveLargeValuesFromVToU(processedSheet);
+
+                // STEP 17: Move any values from column Y to column W
+                processedSheet = this.moveColumnYToWAfterStep16(processedSheet);
+
+                // Step 18: Add multiplication formulas in column O (index 14)
                 processedSheet = this.addMultiplicationFormulas(processedSheet);
 
-                // Step 17: Add multiplication formulas in column U (index 20) - O * S
+                // Step 19: Add multiplication formulas in column U (index 20) - O * S
                 processedSheet = this.addMultiplicationFormulasU(processedSheet);
 
-                // Step 18: Convert column O values to numbers
+                // Step 20: Convert column O values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 14, 'O');
 
-                // Step 19: Convert column S values to numbers
+                // Step 21: Convert column S values to numbers
                 processedSheet = this.convertColumnToNumbers(processedSheet, 18, 'S');
 
-                // Step 20: Add hierarchical sum formulas in column U
+                // Step 22: Add hierarchical sum formulas in column U
                 processedSheet = this.addHierarchicalSumFormulas(processedSheet);
 
-                // Step 21: Apply number formatting to columns S and U
+                // Step 23: Apply number formatting to columns S and U
                 processedSheet = this.applyNumberFormattingAsString(processedSheet);
 
-                // Step 22: Auto-fit columns A and D-W
+                // Step 24 : Auto-fit columns A and D-W
                 processedSheet = this.autoFitColumns(processedSheet);
 
-                // Step 23: Move text from column Y to column W
+                // Step 25: Move text from column Y to column W
                 processedSheet = this.moveColumnYToW(processedSheet);
                 
                 XLSX.utils.book_append_sheet(this.processedWorkbook, processedSheet, sheetName);
             });
 
-            // REMOVED: Don't show download button and completion message here
-            // Let the calling function handle the final UI updates
-            
             return true; // Return success status
             
         } catch (error) {
@@ -203,6 +206,117 @@ class ExcelProcessor {
         }
     }
 
+    // Function to move values from column Y to column W
+    moveColumnYToWAfterStep16(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Column Y is index 24 (0-based), Column W is index 22 (0-based)
+        const sourceColumn = 24; // Y
+        const targetColumn = 22; // W
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const sourceCell = XLSX.utils.encode_cell({ r: R, c: sourceColumn });
+            const targetCell = XLSX.utils.encode_cell({ r: R, c: targetColumn });
+            
+            // Check if source cell has any value (not empty)
+            if (worksheet[sourceCell] && worksheet[sourceCell].v !== undefined && 
+                worksheet[sourceCell].v !== null && worksheet[sourceCell].v !== '') {
+                
+                const sourceValue = worksheet[sourceCell].v;
+                
+                // Move the value to column W
+                if (!worksheet[targetCell]) {
+                    worksheet[targetCell] = {};
+                }
+                worksheet[targetCell].v = sourceValue;
+                
+                // Copy cell type
+                if (worksheet[sourceCell].t) {
+                    worksheet[targetCell].t = worksheet[sourceCell].t;
+                }
+                
+                // Copy any styling if it exists
+                if (worksheet[sourceCell].s) {
+                    worksheet[targetCell].s = { ...worksheet[sourceCell].s };
+                }
+                
+                // Copy formula if it exists
+                if (worksheet[sourceCell].f) {
+                    worksheet[targetCell].f = worksheet[sourceCell].f;
+                }
+                
+                // Clear the source cell in column Y
+                worksheet[sourceCell].v = '';
+                worksheet[sourceCell].t = 's';
+                
+                // console.log(`Moved value from Y${R + 1} to W${R + 1}: ${sourceValue}`);
+            }
+        }
+        
+        return worksheet;
+    }
+
+    //Check column V and move values > 1000 to column U
+    moveLargeValuesFromVToU(worksheet) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        
+        // Column V is index 21 (0-based), Column U is index 20 (0-based)
+        const columnV = 21;
+        const columnU = 20;
+        
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+            const cellV = XLSX.utils.encode_cell({ r: R, c: columnV });
+            const cellU = XLSX.utils.encode_cell({ r: R, c: columnU });
+            
+            if (worksheet[cellV] && worksheet[cellV].v !== undefined && worksheet[cellV].v !== null) {
+                const value = worksheet[cellV].v;
+                let numericValue = null;
+                
+                // Check if the value is a string that contains a number > 1000
+                if (typeof value === 'string') {
+                    // Extract numbers from the string
+                    const numbers = value.match(/\d+/g);
+                    
+                    if (numbers) {
+                        // Check each number found in the string
+                        for (const numStr of numbers) {
+                            const num = parseInt(numStr, 10);
+                            
+                            // If any number in the string is > 1000, move the entire value to column U
+                            if (!isNaN(num) && num > 1000) {
+                                numericValue = num;
+                                break;
+                            }
+                        }
+                    }
+                } else if (typeof value === 'number') {
+                    // Direct numeric comparison
+                    if (value > 1000) {
+                        numericValue = value;
+                    }
+                }
+                
+                // If we found a value > 1000, move it to column J
+                if (numericValue !== null) {
+                    // Move the value to column U
+                    if (!worksheet[cellU]) {
+                        worksheet[cellU] = {};
+                    }
+                    worksheet[cellU].v = value;
+                    worksheet[cellU].t = worksheet[cellV].t || 's';
+
+                    // Clear column V
+                    worksheet[cellV].v = '';
+                    worksheet[cellV].t = 's';
+                    
+                    // console.log(`Moved value "${value}" from V${R + 1} to U${R + 1}`);
+                }
+            }
+        }
+        
+        return worksheet;
+    }
+
     addSelisihColumn(worksheet) {
         // console.log('Adding SELISIH column with formula...');
         
@@ -242,8 +356,6 @@ class ExcelProcessor {
                 }
                 worksheet[cellAU].f = formula;
                 worksheet[cellAU].t = 'n'; // Set as numeric type
-                
-                // console.log(`Applied formula to ${cellAU}: ${formula}`);
             } else if (hasAR || hasU) {
                 // If only one column has data, set to empty but still apply border
                 if (!worksheet[cellAU]) {
