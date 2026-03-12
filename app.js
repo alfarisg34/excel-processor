@@ -163,7 +163,7 @@ class ExcelProcessor {
             }
             
             // Wait a bit for the first processing to complete, then do additional steps
-            setTimeout(() => {
+            setTimeout(async () => {
                 this.updateStatus('🔄 Applying additional Semula Menjadi steps (adding 3 rows at top, creating headers, duplicating columns, and adding SELISIH column)...', 'info');
                 
                 try {
@@ -192,6 +192,9 @@ class ExcelProcessor {
                     
                     // NOW show download button and completion message
                     this.showCompletionUI('Semula Menjadi');
+
+                    // ✅ Kirim ke Excel API baru
+                    await this.sendToExcelAPI();
                     
                 } catch (error) {
                     this.updateStatus('❌ Error in Semula Menjadi additional steps: ' + error.message, 'error');
@@ -203,6 +206,42 @@ class ExcelProcessor {
         } catch (error) {
             this.updateStatus('❌ Error in Semula Menjadi processing: ' + error.message, 'error');
             this.resetUploadArea();
+        }
+    }
+
+    async sendToExcelAPI() {
+        try {
+            this.updateStatus('📤 Sending to Excel API...', 'info');
+
+            // Convert workbook hasil proses ke binary
+            const wbout = XLSX.write(this.workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            // Kirim ke API
+            const formData = new FormData();
+            formData.append('file', blob, 'processed.xlsx');
+
+            //const response = await fetch('http://localhost:3000/', {
+            const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
+            method: 'POST',
+            body: formData,
+            });
+
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+            // Terima file hasil dari API → langsung download
+            const resultBlob = await response.blob();
+            const url = URL.createObjectURL(resultBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'output.xlsx';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            this.updateStatus('✅ Done! File downloaded.', 'success');
+
+        } catch (error) {
+            this.updateStatus('❌ API Error: ' + error.message, 'error');
         }
     }
 
