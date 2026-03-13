@@ -2,6 +2,7 @@ class ExcelProcessor {
     constructor() {
         this.workbook = null;
         this.processedWorkbook = null;
+        this.apiResultBlob = null;
         this.init();
     }
 
@@ -189,12 +190,12 @@ class ExcelProcessor {
                         // Update the processed sheet
                         this.processedWorkbook.Sheets[sheetName] = processedSheet;
                     });
+                    // ✅ Kirim ke Excel API baru
+                    await this.sendToExcelAPI();
                     
                     // NOW show download button and completion message
                     this.showCompletionUI('Semula Menjadi');
 
-                    // ✅ Kirim ke Excel API baru
-                    await this.sendToExcelAPI();
                     
                 } catch (error) {
                     this.updateStatus('❌ Error in Semula Menjadi additional steps: ' + error.message, 'error');
@@ -221,22 +222,16 @@ class ExcelProcessor {
             const formData = new FormData();
             formData.append('file', blob, 'processed.xlsx');
 
-            //const response = await fetch('http://localhost:3000/', {
-            const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
+            const response = await fetch('http://localhost:3000/', {
+            // const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
             method: 'POST',
             body: formData,
             });
 
             if (!response.ok) throw new Error(`API error: ${response.status}`);
 
-            // Terima file hasil dari API → langsung download
-            const resultBlob = await response.blob();
-            const url = URL.createObjectURL(resultBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'output.xlsx';
-            a.click();
-            URL.revokeObjectURL(url);
+            // Simpan blob hasil API ke variabel instance, JANGAN auto-download
+            this.apiResultBlob = await response.blob();
 
             this.updateStatus('✅ Done! File downloaded.', 'success');
 
@@ -1738,20 +1733,30 @@ class ExcelProcessor {
     }
 
     downloadFile() {
-        if (!this.processedWorkbook) {
+        if (!this.processedWorkbook && !this.apiResultBlob) {
             this.updateStatus('❌ No processed file available', 'error');
             return;
         }
-
         try {
-            // Generate filename with timestamp
-            const originalName = this.fileInput.files[0]?.name.replace(/\.[^/.]+$/, "") || 'processed';
             const date = new Date();
-            date.setHours(date.getHours() + 7); // add +7 hours
+            date.setHours(date.getHours() + 7);
             const timestamp = date.toISOString().slice(0, 19).replace(/[:]/g, '-');
-            const filename = `${originalName}_processed_${timestamp}.xlsx`;
             
-            // Download the file
+            // Prioritaskan hasil dari API kalau ada
+            if (this.apiResultBlob) {
+                const url = URL.createObjectURL(this.apiResultBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `output_${timestamp}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.updateStatus(`✅ File downloaded: output_${timestamp}.xlsx`, 'success');
+                return;
+            }
+            
+            // Fallback ke processedWorkbook (untuk Standard processing)
+            const originalName = this.fileInput.files[0]?.name.replace(/\.[^/.]+$/, "") || 'processed';
+            const filename = `${originalName}_processed_${timestamp}.xlsx`;
             XLSX.writeFile(this.processedWorkbook, filename);
             this.updateStatus(`✅ File downloaded: ${filename}`, 'success');
             
