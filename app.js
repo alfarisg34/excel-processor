@@ -222,8 +222,8 @@ class ExcelProcessor {
             const formData = new FormData();
             formData.append('file', blob, 'processed.xlsx');
 
-            const response = await fetch('http://localhost:3000/', {
-            // const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
+            // const response = await fetch('http://localhost:3000/', {
+            const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
             method: 'POST',
             body: formData,
             });
