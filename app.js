@@ -27,6 +27,14 @@ class ExcelProcessor {
         this.dropZoneSemulaMenjadi.addEventListener('dragover', (e) => this.handleDragOverSemulaMenjadi(e));
         this.dropZoneSemulaMenjadi.addEventListener('drop', (e) => this.handleFileDropSemulaMenjadi(e));
 
+        this.faFileInput = document.getElementById('faFileInput');
+        this.faFile = null;
+        this.faFileInput.addEventListener('change', (e) => {
+            this.faFile = e.target.files[0] || null;
+            const label = document.getElementById('faFileLabel');
+            label.textContent = this.faFile ? `✅ ${this.faFile.name}` : 'Belum ada file';
+        });
+
         this.downloadBtn.addEventListener('click', () => this.downloadFile());
 
         this.updateStatus('Please upload an Excel file to begin processing', 'info');
@@ -212,29 +220,29 @@ class ExcelProcessor {
 
     async sendToExcelAPI() {
         try {
+            console.log("[Debug] faFile:", this.faFile); // tambah ini
             this.updateStatus('📤 Sending to Excel API...', 'info');
 
-            // Convert workbook hasil proses ke binary
-            const wbout = XLSX.write(this.workbook, { bookType: 'xlsx', type: 'array' });
+            const wbout = XLSX.write(this.processedWorkbook, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-            // Kirim ke API
             const formData = new FormData();
             formData.append('file', blob, 'processed.xlsx');
 
+            // ✅ Kirim Laporan FA jika ada
+            if (this.faFile) {
+            formData.append('fa_file', this.faFile, this.faFile.name);
+            }
+
             // const response = await fetch('http://localhost:3000/', {
             const response = await fetch('https://excel-processor-v2-alfari-ghilmana.vercel.app/', {
-            method: 'POST',
-            body: formData,
+                method: 'POST',
+                body: formData,
             });
 
             if (!response.ok) throw new Error(`API error: ${response.status}`);
-
-            // Simpan blob hasil API ke variabel instance, JANGAN auto-download
             this.apiResultBlob = await response.blob();
-
-            this.updateStatus('✅ Done! File downloaded.', 'success');
-
+            this.updateStatus('✅ Done! File ready for download.', 'success');
         } catch (error) {
             this.updateStatus('❌ API Error: ' + error.message, 'error');
         }
